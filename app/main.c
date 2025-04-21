@@ -10,138 +10,71 @@
 
 // --- Custom Libs --- 
 #include "lib/juneper.h"
-
-#define PORT 6969 
-#define BUFFER_SIZE 8192
-#define MAX_EVENTS 64
-
-#define RESPONSE_HEADER "HTTP/1.1 200 OK\r\n"\
-  "Content-Type: text/html\r\n"\
-  "Connection: close\r\n"\
-  "\r\n"
-
-#define GET_HEADER "GET "
-#define REFERER_HEADER "Referer: "
-
-int SetNonBlocking(int fd) {
-  int flags = fcntl(fd, F_GETFL, 0);
-  return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-}
-
-void CreateSocket(int* server_fd) {
-  *server_fd = socket(AF_INET, SOCK_STREAM, 0);
-  if (*server_fd == -1) {
-    perror("socket failed");
-    exit(EXIT_FAILURE);
-  }
-  SetNonBlocking(*server_fd);
-}
-
-void BindToSocket(int* server_fd, struct sockaddr_in* server_addr) {
-  server_addr->sin_family = AF_INET;
-  server_addr->sin_addr.s_addr = INADDR_ANY;
-  server_addr->sin_port = htons(PORT);
-
-  if (bind(*server_fd, (struct sockaddr *)server_addr, sizeof(*server_addr)) < 0) {
-    perror("bind failed");
-    close(*server_fd);
-    exit(EXIT_FAILURE);
-  }
-}
-
-void ListenToSocket(int* server_fd) {
-  if (listen(*server_fd, SOMAXCONN) < 0) {
-    perror("listen failed");
-    close(*server_fd);
-    exit(EXIT_FAILURE);
-  }
-  printf("🚀 HTTP Server listening on port %d...\n", PORT);
-}
-
-void HandleRequest(int client_fd) {
-  char header_buffer[BUFFER_SIZE] = {0};
-  char response_buffer[BUFFER_SIZE] = {0};
-  char path[1024] = {0};
-  char file_path[1024] = {0};
-
-  ssize_t bytes_read = read(client_fd, header_buffer, BUFFER_SIZE - 1);
-  if (bytes_read <= 0) {
-    close(client_fd);
-    return;
-  }
-
-  int start_pos = FindChildrenFromParentGeneric(
-    header_buffer, BUFFER_SIZE,
-    GET_HEADER, strlen(GET_HEADER),
-    sizeof(char)
-  );
-
-  if (start_pos != -1) {
-    ExtractPathFromReferer(header_buffer + start_pos, path);
-  }
-
-  if (strcmp(path, "/") == 0) {
-    snprintf(file_path, sizeof(file_path), "paths/index.html");
-  } else if (strstr(path, ".svg") || strstr(path, ".ico") || strstr(path, ".png")) {
-    snprintf(file_path, sizeof(file_path), "assets%s", path);
-  } else {
-    snprintf(file_path, sizeof(file_path), "paths%s.html", path);
-  }
-
-  FILE *html_file = fopen(file_path, "r");
-  if (!html_file) {
-    printf("⚠️ Could not open %s\n", file_path);
-    close(client_fd);
-    return;
-  }
-
-  send(client_fd, RESPONSE_HEADER, strlen(RESPONSE_HEADER), 0);
-
-  while (fgets(response_buffer, BUFFER_SIZE, html_file)) {
-    send(client_fd, response_buffer, strlen(response_buffer), 0);
-  }
-
-  fclose(html_file);
-  close(client_fd);
-}
+#include "lib/junerver.h"
 
 int main() {
   int server_fd;
   struct sockaddr_in server_addr;
 
+  // starting server
   CreateSocket(&server_fd);
   BindToSocket(&server_fd, &server_addr);
   ListenToSocket(&server_fd);
 
+  // Step 1: Create an epoll instance — this returns an epoll file descriptor (epfd).
+  // You will use epfd to register and monitor sockets.
   int epfd = epoll_create1(0);
+  
+  // Step 2: Set up the first event to track: the server listening socket.
+  // We want epoll to notify us when it becomes readable
+  // (i.e., when a new client is trying to connect).
   struct epoll_event ev = {
-    .events = EPOLLIN,
-    .data.fd = server_fd
+    .events = EPOLLIN,       // EPOLLIN means "ready for reading"
+    .data.fd = server_fd     // Attach this event to the server socket
   };
+  
+  // Step 3: Register the server socket with the epoll instance.
+  // This tells epoll to watch for incoming connection attempts on server_fd.
   epoll_ctl(epfd, EPOLL_CTL_ADD, server_fd, &ev);
-
+  
+  // Step 4: Preallocate space for epoll to write ready events into.
+  // When epoll_wait is called, it will populate this array with all triggered events.
   struct epoll_event events[MAX_EVENTS];
-
+  
+  // Step 5: Main event loop — run forever
   while (1) {
+    // Step 6: Block until one or more registered file descriptors become ready.
+    // epoll_wait fills `events` with up to MAX_EVENTS ready file descriptors.
+    // Returns the number of ready fds (`n`).
     int n = epoll_wait(epfd, events, MAX_EVENTS, -1);
+  
+    // Step 7: Iterate over each ready file descriptor.
     for (int i = 0; i < n; i++) {
       int fd = events[i].data.fd;
-
+  
+      // Step 8: If the ready fd is the server socket, it means a new client is trying to connect.
       if (fd == server_fd) {
-        // Accept all pending connections
+        // Step 9: Accept all incoming connections in a loop.
+        // With EPOLLET (edge-triggered mode), we must accept ALL connections now.
         while (1) {
           int client_fd = accept(server_fd, NULL, NULL);
-          if (client_fd == -1) break;
-
+          if (client_fd == -1) break;  // No more connections to accept
+  
+          // Step 10: Set the new client socket to non-blocking mode.
+          // This is required when using epoll in edge-triggered mode.
           SetNonBlocking(client_fd);
-
+  
+          // Step 11: Register this client socket with epoll.
+          // Now epoll will notify us when the client sends data.
           struct epoll_event client_ev = {
-            .events = EPOLLIN | EPOLLET,
+            .events = EPOLLIN | EPOLLET,  // Notify when readable, only once until re-triggered
             .data.fd = client_fd
           };
           epoll_ctl(epfd, EPOLL_CTL_ADD, client_fd, &client_ev);
         }
       } else {
+        // Step 12: If the fd is not the server socket, it's a client socket.
+        // Handle the request (read the data, respond, and close).
         HandleRequest(fd);
       }
     }

@@ -1,0 +1,35 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_OUTPUT_EXCMD	mixed	/number, pattern, mixed, or combineV2/
+!_TAG_OUTPUT_FILESEP	slash	/slash or backslash/
+!_TAG_OUTPUT_MODE	u-ctags	/u-ctags or e-ctags/
+!_TAG_PATTERN_LENGTH_LIMIT	96	/0 for no limit/
+!_TAG_PROC_CWD	/home/june/cerver/app/	//
+!_TAG_PROGRAM_AUTHOR	Universal Ctags Team	//
+!_TAG_PROGRAM_NAME	Universal Ctags	/Derived from Exuberant Ctags/
+!_TAG_PROGRAM_URL	https://ctags.io/	/official site/
+!_TAG_PROGRAM_VERSION	5.9.0	//
+BUFFER_SIZE	lib/junerver.h	/^#define BUFFER_SIZE /;"	d
+BindToSocket	lib/junerver.c	/^void BindToSocket(int* server_fd, struct sockaddr_in* server_addr) {$/;"	f	typeref:typename:void
+CreateSocket	lib/junerver.c	/^void CreateSocket(int* server_fd) {$/;"	f	typeref:typename:void
+Education	paths/index.html	/^         <h2 class="section-style"> Education <\/h2>$/;"	i
+Experience	paths/index.html	/^         <h2 class="section-style"> Experience <\/h2>$/;"	i
+ExtractPathFromReferer	lib/juneper.c	/^void* ExtractPathFromReferer(const char* string_value, char* out_path) {$/;"	f	typeref:typename:void *
+FindChildrenFromParentGeneric	lib/juneper.c	/^int FindChildrenFromParentGeneric($/;"	f	typeref:typename:int
+GET_HEADER	lib/junerver.h	/^#define GET_HEADER /;"	d
+HandleRequest	lib/junerver.c	/^void HandleRequest(int client_fd) {$/;"	f	typeref:typename:void
+JUNEPER_H	lib/juneper.h	/^#define JUNEPER_H$/;"	d
+JUNERVER_H	lib/junerver.h	/^#define JUNERVER_H$/;"	d
+Life File!	paths/life.html	/^  <h1>Life File!<\/h1>$/;"	h
+ListenToSocket	lib/junerver.c	/^void ListenToSocket(int* server_fd) {$/;"	f	typeref:typename:void
+MAX_EVENTS	lib/junerver.h	/^#define MAX_EVENTS /;"	d
+PORT	lib/junerver.h	/^#define PORT /;"	d
+REFERER_HEADER	lib/junerver.h	/^#define REFERER_HEADER /;"	d
+RESPONSE_HEADER	lib/junerver.h	/^#define RESPONSE_HEADER /;"	d
+SetNonBlocking	lib/junerver.c	/^int SetNonBlocking(int fd) {$/;"	f	typeref:typename:int
+Skills	paths/index.html	/^         <h2 class="section-style"> Skills <\/h2>$/;"	i
+StrStr	lib/juneper.c	/^int StrStr(char* str1, char* str2) {$/;"	f	typeref:typename:int
+Summary	paths/index.html	/^         <h2 class="section-style"> Summary <\/h2>$/;"	i
+len	lib/juneper.h	/^#define len /;"	d
+main	lib/main.c	/^int main() {$/;"	f	typeref:typename:int
+main	main.c	/^int main() {$/;"	f	typeref:typename:int

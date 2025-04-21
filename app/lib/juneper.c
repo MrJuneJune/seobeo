@@ -1,8 +1,15 @@
 #include <stdio.h>
-#include <string.h>
 #include <regex.h>
-
 #include "juneper.h"
+
+int StrStr(char* str1, char* str2) {
+  while(*str1) {
+    if (memcmp(str1++, str2, len(str2)) == 0) {
+      return 0;
+    }
+  }
+  return 1;
+}
 
 int FindChildrenFromParentGeneric(
   const void* parent, const int parent_len,
@@ -39,6 +46,7 @@ void* ExtractPathFromReferer(const char* string_value, char* out_path) {
   // const char* pattern = "https?://[^/]+(/[^ \r\n]*)";
   const char* pattern = "(/[^ \r\n]*)";
 
+  // Add loggers
   if (regcomp(&regex, pattern, REG_EXTENDED) != 0) {
     fprintf(stderr, "Failed to compile regex\n");
     return out_path;

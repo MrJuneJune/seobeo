@@ -1,7 +1,12 @@
 #ifndef JUNEPER_H
 #define JUNEPER_H
 
+#include <string.h>
+#define len strlen
+
 #include <stddef.h>
+
+int StrStr(char* str1, char* str2);
 
 int FindChildrenFromParentGeneric(
   const void* parent, const int parent_len,

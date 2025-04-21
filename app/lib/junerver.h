@@ -9,7 +9,7 @@
 
 // Related to response
 #define RESPONSE_HEADER "HTTP/1.1 200 OK\r\n"\
-  "Content-Type: text/html\r\n"\
+  "Content-Type: text/html; charset=utf-8\r\n"\
   "Connection: close\r\n"\
   "\r\n"
 #define GET_HEADER "GET "

@@ -21,8 +21,10 @@ int main() {
   BindToSocket(&server_fd, &server_addr);
   ListenToSocket(&server_fd);
 
-  // Step 1: Create an epoll instance — this returns an epoll file descriptor (epfd).
-  // You will use epfd to register and monitor sockets.
+  // -- Epoll Logic --
+  // Writing it down since I don't really get it.
+
+  // Step 1: Create an epoll instance. This returns an epoll file descriptor.
   int epfd = epoll_create1(0);
   
   // Step 2: Set up the first event to track: the server listening socket.

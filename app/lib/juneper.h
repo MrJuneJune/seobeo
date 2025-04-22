@@ -2,9 +2,8 @@
 #define JUNEPER_H
 
 #include <string.h>
-#define len strlen
 
-#include <stddef.h>
+#define len strlen
 
 int StrStr(char* str1, char* str2);
 

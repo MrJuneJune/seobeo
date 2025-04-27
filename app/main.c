@@ -7,10 +7,17 @@
 #include <netinet/in.h>   
 #include <arpa/inet.h>   
 #include <sys/epoll.h>
+#include <signal.h>
 
 // --- Custom Libs --- 
 #include "lib/juneper.h"
 #include "lib/junerver.h"
+
+volatile sig_atomic_t stop_server = 0;
+
+void handle_sigint(int sig) {
+  stop_server = 1;
+}
 
 int main() {
   int server_fd;
@@ -20,6 +27,7 @@ int main() {
   CreateSocket(&server_fd);
   BindToSocket(&server_fd, &server_addr);
   ListenToSocket(&server_fd);
+  signal(SIGINT, handle_sigint);
 
   // -- Epoll Logic --
   // Writing it down since I don't really get it.
@@ -44,7 +52,7 @@ int main() {
   struct epoll_event events[MAX_EVENTS];
   
   // Step 5: Main event loop — run forever
-  while (1) {
+  while (!stop_server) {
     // Step 6: Block until one or more registered file descriptors become ready.
     // epoll_wait fills `events` with up to MAX_EVENTS ready file descriptors.
     // Returns the number of ready fds (`n`).
@@ -82,7 +90,9 @@ int main() {
     }
   }
 
+  printf("Shutting down server...\n");
   close(server_fd);
+  close(epfd);
   return 0;
 }
 

@@ -1,11 +1,8 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "junerver.h"
 #include "juneper.h"
 
-// TODO: Nice to have this as a compile time variables.
+// --- Response -- //
+// TODO: Make this into compile time variables 
 void GenerateResponseHeader(char* buffer, int status, const char* content_type) {
   const char* status_text;
   
@@ -49,6 +46,7 @@ void SendHTTPErrorResponse(int client_fd, int status_code) {
   send(client_fd, body, strlen(body), 0);
 }
 
+// --- Server -- //
 int SetNonBlocking(int fd) {
   int flags = fcntl(fd, F_GETFL, 0);
   return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
@@ -81,7 +79,7 @@ void ListenToSocket(int* server_fd) {
     close(*server_fd);
     exit(EXIT_FAILURE);
   }
-  printf("🚀 HTTP Server listening on port %d...\n", PORT);
+  WriteToLogs("🚀 HTTP Server listening on port %d...\n", PORT);
 }
 
 void HandleRequest(int client_fd) {
@@ -99,6 +97,7 @@ void HandleRequest(int client_fd) {
     return;
   }
 
+  // TODO: Handle all cases? also get all header values as a struct rather than searching for it.
   int start_pos = FindChildrenFromParentGeneric(
     header_buffer, BUFFER_SIZE,
     GET_HEADER, strlen(GET_HEADER),
@@ -112,14 +111,15 @@ void HandleRequest(int client_fd) {
     close(client_fd);
     return;
   }
-  
+
+  // Only handling GET for now.
   // Basic path sanitization to prevent directory traversal
   if (strstr(path, "..") != NULL) {
     SendHTTPErrorResponse(client_fd, HTTP_FORBIDDEN);
     close(client_fd);
     return;
   }
-  
+
   if (strcmp(path, "/") == 0) {
     snprintf(file_path, sizeof(file_path), "paths/index.html");
   } else if (strstr(path, ".svg") || strstr(path, ".ico") || strstr(path, ".png")) {
@@ -130,7 +130,7 @@ void HandleRequest(int client_fd) {
   
   FILE *file = fopen(file_path, "r");
   if (!file) {
-    printf("⚠️ Could not open %s\n", file_path);
+    WriteToLogs("[Error]⚠️ Could not open %s\n", file_path);
     SendHTTPErrorResponse(client_fd, HTTP_NOT_FOUND);
     close(client_fd);
     return;
@@ -160,4 +160,30 @@ void HandleRequest(int client_fd) {
   
   fclose(file);
   close(client_fd);
+}
+
+// TODO: Add types
+void WriteToLogs(const char *restrict format, ...) {
+  char logger_buffer[LOGGER_BUFFER] = {0};
+  char timestamp[26];
+  va_list args;
+
+  va_start(args, format);
+  vsnprintf(logger_buffer, LOGGER_BUFFER, format, args);
+
+  struct stat file_stat = {0};
+  if (stat("logs", &file_stat) == -1) {
+    printf("logs folder do not exists");
+    if (mkdir("logs", 0755) != 0) {
+      printf("Cannot create log directory");
+    }
+  }
+
+  FILE* file = fopen("logs/logers.txt", "a");
+  GetTimeStamp(timestamp, sizeof(timestamp));
+
+  printf("[%s] %s", timestamp, logger_buffer);
+  fprintf(file, "[%s] %s", timestamp, logger_buffer);
+
+  fclose(file);
 }

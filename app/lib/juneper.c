@@ -1,22 +1,11 @@
-#include <stdio.h>
-#include <regex.h>
 #include "juneper.h"
-
-int StrStr(char* str1, char* str2) {
-  while(*str1) {
-    if (memcmp(str1++, str2, len(str2)) == 0) {
-      return 0;
-    }
-  }
-  return 1;
-}
 
 int FindChildrenFromParentGeneric(
   const void* parent, const int parent_len,
   const void* children, const int children_len, 
   size_t type_size
 ) {
-  // need to case or we can't do pointer arithmetics
+  // need to cast or we can't do pointer arithmetics
   const char* parent_cast = (const char*)parent;
   const char* children_cast = (const char*)children;
 
@@ -65,4 +54,10 @@ void* ExtractPathFromReferer(const char* string_value, char* out_path) {
   regfree(&regex);
 
   return out_path;
+}
+
+void* GetTimeStamp(char* time_stamp, size_t size) {
+  time_t now = time(NULL);
+  struct tm *tm_info = localtime(&now);
+  strftime(time_stamp, size, "%Y-%m-%d %H:%M:%S", tm_info);
 }

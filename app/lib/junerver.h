@@ -12,6 +12,7 @@
 #include <sys/socket.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <regex.h>
 #include <unistd.h>       
 
 #define PORT 6969  // good number
@@ -29,16 +30,49 @@
 #define HTTP_NOT_FOUND 404
 #define HTTP_INTERNAL_ERROR 500
 
-#define GET_HEADER "GET "
+// Maybe make this into enum?
+#define HTTP_METHOD_UNDEFINED 0
+#define HTTP_METHOD_GET 1
+#define HTTP_METHOD_POST 2
+#define HTTP_METHOD_PUT 3
+#define HTTP_METHOD_DELETE 4
 
+#define GET_HEADER "GET "
+#define POST_HEADER "POST "
+#define PUT_HEADER "PUT "
+#define DELETE_HEADER "DELETE "
+#define CONTENT_LENGTH_HEADER "Content-Length: "
+#define CONTENT_TYPE_HEADER "Content-Type: "
+
+typedef struct {
+  int method;
+  char path[1024];
+  char* body;
+  int content_length; 
+  char content_type[128];
+} HttpRequestType;
+
+// Server Related
 int SetNonBlocking(int fd);
 void CreateSocket(int* server_fd);
 void BindToSocket(int* server_fd, struct sockaddr_in* server_addr);
 void ListenToSocket(int* server_fd);
-int SetupEpoll(int server_fd);
+
+// Request Related
+void ParseHttpRequest(char* buffer, HttpRequestType* request);
+void ExtractPathFromReferer(const char* string_value, char* out_path); 
+int  SanitizePaths(char* path);
+void HandleGetRequest(int client_fd, HttpRequestType* request);
+void HandlePostRequest(int client_fd, HttpRequestType* request);
+void HandlePutRequest(int client_fd, HttpRequestType* request);
+void HandleDeleteRequest(int client_fd, HttpRequestType* request);
 void HandleRequest(int client_fd);
+
+// Response Related
 void GenerateResponseHeader(char* buffer, int status, const char* content_type);
 void SendHTTPErrorResponse(int client_fd, int status_code);
+
+// Loggers
 void WriteToLogs(const char *restrict format, ...);
 
 #endif // JUNERVER_H

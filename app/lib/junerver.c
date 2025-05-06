@@ -19,12 +19,14 @@ void GenerateResponseHeader(char* buffer, int status, const char* content_type) 
     default: status_text = "Unknown"; break;
   }
   
-  sprintf(buffer, 
-      "HTTP/1.1 %d %s\r\n"
-      "Content-Type: %s\r\n"
-      "Connection: close\r\n"
-      "\r\n", 
-      status, status_text, content_type);
+  sprintf(
+    buffer, 
+    "HTTP/1.1 %d %s\r\n"
+    "Content-Type: %s\r\n"
+    "Connection: close\r\n"
+    "\r\n", 
+    status, status_text, content_type
+  );
 }
 
 void SendHTTPErrorResponse(int client_fd, int status_code) {
@@ -82,50 +84,110 @@ void ListenToSocket(int* server_fd) {
   WriteToLogs("🚀 HTTP Server listening on port %d...\n", PORT);
 }
 
-void HandleRequest(int client_fd) {
-  char header_buffer[BUFFER_SIZE] = {0};
-  char response_body_buffer[BUFFER_SIZE] = {0};
-  char response_header_buffer[BUFFER_SIZE] = {0};
-  char path[1024] = {0};
-  char file_path[1024] = {0};
-  
-  ssize_t bytes_read = read(client_fd, header_buffer, BUFFER_SIZE - 1);
+void ExtractPathFromReferer(const char* string_value, char* out_path) {
+  regex_t regex;
+  regmatch_t matches[2];
+  int WHOLE_MATCH_INDEX = 0;
+  int PATH_INDEX = 1;
 
-  // No request being sent.
-  if (bytes_read <= 0) {
-    close(client_fd);
-    return;
+  // TODO: move to consts file
+  // const char* pattern = "https?://[^/]+(/[^ \r\n]*)";
+  const char* pattern = "(/[^ \r\n]*)";
+
+  // Add loggers
+  if (regcomp(&regex, pattern, REG_EXTENDED) != 0) {
+    fprintf(stderr, "Failed to compile regex\n");
   }
 
-  // TODO: Handle all cases? also get all header values as a struct rather than searching for it.
-  int start_pos = FindChildrenFromParentGeneric(
-    header_buffer, BUFFER_SIZE,
-    GET_HEADER, strlen(GET_HEADER),
-    sizeof(char)
-  );
-  
-  if (start_pos != -1) {
-    ExtractPathFromReferer(header_buffer + start_pos, path);
+  if (regexec(&regex, string_value, 2, matches, 0) == 0) {
+    int start = matches[1].rm_so;
+    int end = matches[1].rm_eo;
+
+    strncpy(out_path, string_value + start, end - start);
+    WriteToLogs("[Info] Opened  %s\n", out_path);
   } else {
-    SendHTTPErrorResponse(client_fd, HTTP_BAD_REQUEST);
-    close(client_fd);
-    return;
+    WriteToLogs("[Error] Couldn't Open  %s\n", out_path);
   }
 
-  // Only handling GET for now.
-  // Basic path sanitization to prevent directory traversal
-  if (strstr(path, "..") != NULL) {
-    SendHTTPErrorResponse(client_fd, HTTP_FORBIDDEN);
-    close(client_fd);
-    return;
+  regfree(&regex);
+}
+
+void ParseHttpRequest(char* buffer, HttpRequestType* request) {
+  void* http_loop[][2] = {
+    {(void*)GET_HEADER, (void*)(intptr_t)HTTP_METHOD_GET},
+    {(void*)POST_HEADER, (void*)(intptr_t)HTTP_METHOD_POST},
+    {(void*)PUT_HEADER, (void*)(intptr_t)HTTP_METHOD_PUT},
+    {(void*)DELETE_HEADER, (void*)(intptr_t)HTTP_METHOD_DELETE},
+  };
+
+  for (int i=0; i<4; i++) {
+    if (strncmp(buffer, (char*)http_loop[i][0], strlen((char*)http_loop[i][0]))==0) {
+      request->method = (int)(intptr_t)http_loop[i][1];
+      ExtractPathFromReferer(buffer + strlen((char*)http_loop[i][0]), request->path);
+      break;
+    }
   }
 
-  if (strcmp(path, "/") == 0) {
+  char* content_length_ptr = strstr(buffer, CONTENT_LENGTH_HEADER);
+  if (content_length_ptr) {
+    request->content_length = atoi(content_length_ptr+strlen(CONTENT_LENGTH_HEADER)); 
+  }
+  char* content_type_ptr = strstr(buffer, CONTENT_TYPE_HEADER);
+  if (content_type_ptr)
+  {
+    char* end = strstr(content_type_ptr, "\r\n");
+    if (end)
+    {
+      int len = end - (content_type_ptr + strlen(CONTENT_TYPE_HEADER));
+      if (len < sizeof(request->content_type))
+      {
+        strncpy(request->content_type, content_type_ptr + strlen(CONTENT_TYPE_HEADER), len);
+      }
+    }
+  }
+
+  request->body = malloc(request->content_length);
+  if (
+    (request->method == HTTP_METHOD_POST || request->method == HTTP_METHOD_PUT) && 
+    request->content_length > 0
+  ) {
+    char* body_start = strstr(buffer, "\r\n\r\n");
+    strncpy(request->body, body_start, BUFFER_SIZE);
+  }
+}
+
+int SanitizePaths(char* path) {
+  if (strstr(path, "..") != NULL)
+  {
+    return -1;
+  }
+
+  return 0;
+}
+
+void HandleGetRequest(
+  int client_fd,
+  HttpRequestType* request
+) {
+  char response_header_buffer[BUFFER_SIZE];
+  char response_body_buffer[BUFFER_SIZE];
+  char file_path[BUFFER_SIZE];
+
+  if (strcmp(request->path, "/") == 0)
+  {
     snprintf(file_path, sizeof(file_path), "paths/index.html");
-  } else if (strstr(path, ".svg") || strstr(path, ".ico") || strstr(path, ".png")) {
-    snprintf(file_path, sizeof(file_path), "assets%s", path);
-  } else {
-    snprintf(file_path, sizeof(file_path), "paths%s.html", path);
+  } 
+  else if (strstr(request->path, ".svg") || strstr(request->path, ".ico") || strstr(request->path, ".png"))
+  {
+    snprintf(file_path, sizeof(file_path), "assets%s", request->path);
+  }
+  else if (strstr(request->path, ".json"))
+  {
+    snprintf(file_path, sizeof(file_path), "api%s", request->path);
+  }
+  else
+  {
+    snprintf(file_path, sizeof(file_path), "paths%s.html", request->path);
   }
   
   FILE *file = fopen(file_path, "r");
@@ -137,7 +199,7 @@ void HandleRequest(int client_fd) {
   }
   
   // Determine content type based on file extension
-  const char* content_type = "text/html; charset=utf-8 ";
+  const char* content_type = "text/html; charset=utf-8";
   if (strstr(file_path, ".css"))
     content_type = "text/css";
   else if (strstr(file_path, ".js"))
@@ -153,13 +215,72 @@ void HandleRequest(int client_fd) {
   
   GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type);
   send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
-  
-  while (fgets(response_body_buffer, BUFFER_SIZE, file)) {
-    send(client_fd, response_body_buffer, strlen(response_body_buffer), 0);
+
+  size_t bytes;
+  while ((bytes = fread(response_body_buffer, 1, BUFFER_SIZE, file)) > 0) {
+    send(client_fd, response_body_buffer, bytes, 0);
   }
   
   fclose(file);
   close(client_fd);
+}
+
+void HandlePostRequest(
+  int client_fd,
+  HttpRequestType* request
+) {
+  printf("NOT IMPLEMENTED POST");
+}
+
+void HandlePutRequest(
+  int client_fd,
+  HttpRequestType* request
+) {
+  printf("NOT IMPLEMENTED POST");
+}
+
+void HandleDeleteRequest(
+  int client_fd,
+  HttpRequestType* request
+) {
+  printf("NOT IMPLEMENTED POST");
+}
+
+void HandleRequest(int client_fd) { 
+  char header_buffer[BUFFER_SIZE];
+  ssize_t bytes_read = read(client_fd, header_buffer, BUFFER_SIZE - 1);
+
+  HttpRequestType request = {0};
+  ParseHttpRequest(header_buffer, &request);
+
+  // Basic guard statements for requests.
+  if (SanitizePaths(request.path) != 0)
+  {
+    SendHTTPErrorResponse(client_fd, HTTP_FORBIDDEN);
+    close(client_fd);
+    return;
+  }
+
+  switch(request.method) {
+    case HTTP_METHOD_GET:
+      HandleGetRequest(client_fd, &request);
+      break;
+    case HTTP_METHOD_POST:
+      HandlePostRequest(client_fd, &request);
+      break;
+    case HTTP_METHOD_PUT:
+      HandlePutRequest(client_fd, &request);
+      break;
+    case HTTP_METHOD_DELETE:
+      HandleDeleteRequest(client_fd, &request);
+      break;
+    default:
+      printf("Default?");
+      break;
+  }
+
+  // Free requests and it is no longer needed.
+  free(request.body);
 }
 
 // TODO: Add types

@@ -25,38 +25,7 @@ int FindChildrenFromParentGeneric(
   return res;
 }
 
-void* ExtractPathFromReferer(const char* string_value, char* out_path) {
-  regex_t regex;
-  regmatch_t matches[2];
-  int WHOLE_MATCH_INDEX = 0;
-  int PATH_INDEX = 1;
-
-  // TODO: move to consts file
-  // const char* pattern = "https?://[^/]+(/[^ \r\n]*)";
-  const char* pattern = "(/[^ \r\n]*)";
-
-  // Add loggers
-  if (regcomp(&regex, pattern, REG_EXTENDED) != 0) {
-    fprintf(stderr, "Failed to compile regex\n");
-    return out_path;
-  }
-
-  if (regexec(&regex, string_value, 2, matches, 0) == 0) {
-    int start = matches[1].rm_so;
-    int end = matches[1].rm_eo;
-
-    strncpy(out_path, string_value + start, end - start);
-    printf("📂 Extracted path: %s\n", out_path);
-  } else {
-    printf("⚠️  Referer path not found.\n");
-  }
-
-  regfree(&regex);
-
-  return out_path;
-}
-
-void* GetTimeStamp(char* time_stamp, size_t size) {
+void GetTimeStamp(char* time_stamp, size_t size) {
   time_t now = time(NULL);
   struct tm *tm_info = localtime(&now);
   strftime(time_stamp, size, "%Y-%m-%d %H:%M:%S", tm_info);

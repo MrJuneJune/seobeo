@@ -14,6 +14,8 @@
 #include <sys/stat.h>
 #include <regex.h>
 #include <unistd.h>       
+#include <sys/epoll.h>
+#include <errno.h>
 
 #define PORT 6969  // good number
 #define BUFFER_SIZE 8192 // ngnix default I believe
@@ -52,6 +54,13 @@ typedef struct {
   char content_type[128];
 } HttpRequestType;
 
+typedef void RequestHandler(int client_fd, HttpRequestType* request);
+
+typedef struct {
+  const char* path;
+  RequestHandler* handler;
+} PathToHandler;
+
 // Server Related
 int SetNonBlocking(int fd);
 void CreateSocket(int* server_fd);
@@ -69,7 +78,7 @@ void HandleDeleteRequest(int client_fd, HttpRequestType* request);
 void HandleRequest(int client_fd);
 
 // Response Related
-void GenerateResponseHeader(char* buffer, int status, const char* content_type);
+void GenerateResponseHeader(char* buffer, int status, const char* content_type, const int content_length);
 void SendHTTPErrorResponse(int client_fd, int status_code);
 
 // Loggers

@@ -1,11 +1,19 @@
 #include "junerver.h"
 #include "juneper.h"
+#include "post.h"
 
 // --- Response -- //
-// TODO: Make this into compile time variables 
-void GenerateResponseHeader(char* buffer, int status, const char* content_type) {
+void GenerateResponseHeader
+(
+  char* buffer,
+  int status,
+  const char* content_type,
+  const int content_length
+) {
   const char* status_text;
   
+
+  // TODO: Make this into compile time variables 
   switch(status) {
     case HTTP_OK: status_text = "OK"; break;
     case HTTP_CREATED: status_text = "Created"; break;
@@ -23,9 +31,10 @@ void GenerateResponseHeader(char* buffer, int status, const char* content_type) 
     buffer, 
     "HTTP/1.1 %d %s\r\n"
     "Content-Type: %s\r\n"
+    "Content-Length: %d\r\n"
     "Connection: close\r\n"
     "\r\n", 
-    status, status_text, content_type
+    status, status_text, content_type, content_length
   );
 }
 
@@ -42,7 +51,7 @@ void SendHTTPErrorResponse(int client_fd, int status_code) {
       status_code == HTTP_FORBIDDEN ? "You don't have permission to access this resource." :
       "An error occurred processing your request.");
   
-  GenerateResponseHeader(header, status_code, "text/html");
+  GenerateResponseHeader(header, status_code, "text/html", strlen(body));
   
   send(client_fd, header, strlen(header), 0);
   send(client_fd, body, strlen(body), 0);
@@ -146,13 +155,15 @@ void ParseHttpRequest(char* buffer, HttpRequestType* request) {
     }
   }
 
-  request->body = malloc(request->content_length);
+  request->body = malloc(request->content_length+1);
   if (
     (request->method == HTTP_METHOD_POST || request->method == HTTP_METHOD_PUT) && 
     request->content_length > 0
   ) {
     char* body_start = strstr(buffer, "\r\n\r\n");
-    strncpy(request->body, body_start, BUFFER_SIZE);
+    memcpy(request->body, body_start, request->content_length);
+    request->body[request->content_length] = '\0';
+    printf("Body_start %s\n", body_start);
   }
 }
 
@@ -212,8 +223,12 @@ void HandleGetRequest(
     content_type = "image/svg+xml";
   else if (strstr(file_path, ".ico"))
     content_type = "image/x-icon";
+
+  // Get all the files first
+  size_t file_size = fseek(file, 0, SEEK_END);
+  rewind(file);
   
-  GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type);
+  GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, file_size);
   send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
 
   size_t bytes;
@@ -229,26 +244,90 @@ void HandlePostRequest(
   int client_fd,
   HttpRequestType* request
 ) {
-  printf("NOT IMPLEMENTED POST");
+  WriteToLogs(
+    "POST request to %s with content-type %s and length %d\n",
+    request->path, request->content_type, request->content_length
+  );
+
+  if (!request->body) {
+    SendHTTPErrorResponse(client_fd, HTTP_BAD_REQUEST);
+    return;
+  }
+
+  int response = 0;
+  for (int i = 0; i < POST_REQUEST_HANDLER_SIZE; i++)
+  {
+    if (strcmp(POST_REQUEST_HANDLER[i].path, request->path)==0) {
+      POST_REQUEST_HANDLER[i].handler(client_fd, request);
+      response = 1;
+      break;
+    }
+  } 
+
+  if (response != 1) {
+    SendHTTPErrorResponse(client_fd, HTTP_BAD_REQUEST);
+    return;
+  }
+
+  return;
 }
 
 void HandlePutRequest(
   int client_fd,
   HttpRequestType* request
 ) {
-  printf("NOT IMPLEMENTED POST");
+  WriteToLogs(
+    "POST request to %s with content-type %s and length %d\n",
+    request->path, request->content_type, request->content_length
+  );
+
+  if (!request->body) {
+    SendHTTPErrorResponse(client_fd, HTTP_BAD_REQUEST);
+    return;
+  }
 }
 
 void HandleDeleteRequest(
   int client_fd,
   HttpRequestType* request
 ) {
-  printf("NOT IMPLEMENTED POST");
+  WriteToLogs(
+    "POST request to %s with content-type %s and length %d\n",
+    request->path, request->content_type, request->content_length
+  );
+
+  if (!request->body) {
+    SendHTTPErrorResponse(client_fd, HTTP_BAD_REQUEST);
+    return;
+  }
 }
 
 void HandleRequest(int client_fd) { 
   char header_buffer[BUFFER_SIZE];
-  ssize_t bytes_read = read(client_fd, header_buffer, BUFFER_SIZE - 1);
+  ssize_t total_bytes = 0;
+
+  while (1) {
+    ssize_t bytes_read = read(client_fd, header_buffer + total_bytes, BUFFER_SIZE - 1 - total_bytes);
+    if (bytes_read == -1) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        // No more data to read
+        break;
+      }
+      perror("read");
+      close(client_fd);
+      return;
+    } else if (bytes_read == 0) {
+      // Client closed connection
+      close(client_fd);
+      return;
+    }
+    total_bytes += bytes_read;
+
+    // Optional: prevent overflow
+    if (total_bytes >= BUFFER_SIZE - 1) {
+      break;
+    }
+  }
 
   HttpRequestType request = {0};
   ParseHttpRequest(header_buffer, &request);

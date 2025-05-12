@@ -1,5 +1,5 @@
-#ifndef JUNERVER_H
-#define JUNERVER_H
+#ifndef SEOBEO_SERVER_H
+#define SEOBEO_SERVER_H
 
 #include <arpa/inet.h>   
 #include <fcntl.h>
@@ -92,4 +92,4 @@ void WriteToLogs(const char *restrict format, ...);
 // Epoll Logci
 void RunEpollLoop(const int server_fd);
 
-#endif // JUNERVER_H
+#endif // SEOBEO_SERVER_H

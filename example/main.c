@@ -1,17 +1,6 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>       
-#include <fcntl.h>
-#include <sys/socket.h>
-#include <netinet/in.h>   
-#include <arpa/inet.h>   
-#include <sys/epoll.h>
-#include <signal.h>
-
 // --- Custom Libs --- 
-#include "lib/juneper.h"
-#include "lib/junerver.h"
+#include <seobeo/helper.h>
+#include <seobeo/server.h>
 
 volatile sig_atomic_t stop_server = 0;
 

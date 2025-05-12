@@ -16,6 +16,7 @@
 #include <unistd.h>       
 #include <sys/epoll.h>
 #include <errno.h>
+#include <signal.h>
 
 #define PORT 6969  // good number
 #define BUFFER_SIZE 8192 // ngnix default I believe
@@ -45,6 +46,9 @@
 #define DELETE_HEADER "DELETE "
 #define CONTENT_LENGTH_HEADER "Content-Length: "
 #define CONTENT_TYPE_HEADER "Content-Type: "
+
+// TODO: Create a global.h file for stuff like this.
+extern volatile sig_atomic_t stop_server;
 
 typedef struct {
   int method;
@@ -82,6 +86,10 @@ void GenerateResponseHeader(char* buffer, int status, const char* content_type, 
 void SendHTTPErrorResponse(int client_fd, int status_code);
 
 // Loggers
+void WriteRequestLog(HttpRequestType request);
 void WriteToLogs(const char *restrict format, ...);
+
+// Epoll Logci
+void RunEpollLoop(const int server_fd);
 
 #endif // JUNERVER_H

@@ -60,6 +60,7 @@ void SendHTTPErrorResponse(int client_fd, int status_code) {
 // --- Server -- //
 int SetNonBlocking(int fd) {
   int flags = fcntl(fd, F_GETFL, 0);
+  if (flags == -1) return -1;
   return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
 
@@ -76,6 +77,10 @@ void BindToSocket(int* server_fd, struct sockaddr_in* server_addr) {
   server_addr->sin_family = AF_INET;
   server_addr->sin_addr.s_addr = INADDR_ANY;
   server_addr->sin_port = htons(PORT);
+
+  // Re-use tcp address?
+  int opt = 1;
+  setsockopt(*server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
   if (bind(*server_fd, (struct sockaddr *)server_addr, sizeof(*server_addr)) < 0) {
     perror("bind failed");
@@ -163,7 +168,6 @@ void ParseHttpRequest(char* buffer, HttpRequestType* request) {
     char* body_start = strstr(buffer, "\r\n\r\n");
     memcpy(request->body, body_start, request->content_length);
     request->body[request->content_length] = '\0';
-    printf("Body_start %s\n", body_start);
   }
 }
 
@@ -225,7 +229,8 @@ void HandleGetRequest(
     content_type = "image/x-icon";
 
   // Get all the files first
-  size_t file_size = fseek(file, 0, SEEK_END);
+  fseek(file, 0, SEEK_END); 
+  size_t file_size = ftell(file);
   rewind(file);
   
   GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, file_size);
@@ -342,25 +347,46 @@ void HandleRequest(int client_fd) {
 
   switch(request.method) {
     case HTTP_METHOD_GET:
+      WriteToLogs("GET REQUEST");
       HandleGetRequest(client_fd, &request);
       break;
     case HTTP_METHOD_POST:
+      WriteToLogs("POST REQUEST");
       HandlePostRequest(client_fd, &request);
       break;
     case HTTP_METHOD_PUT:
+      WriteToLogs("PUT REQUEST");
       HandlePutRequest(client_fd, &request);
       break;
     case HTTP_METHOD_DELETE:
+      WriteToLogs("DELETE REQUEST");
       HandleDeleteRequest(client_fd, &request);
       break;
     default:
-      printf("Default?");
+      WriteToLogs("[Error]: It is not GET, POST, PUT, or DELETE");
       break;
   }
 
   // Free requests and it is no longer needed.
   free(request.body);
 }
+
+void WriteRequestLog(HttpRequestType request) {
+  WriteToLogs(
+    "Request: \n"
+    "method: %d,\n"
+    "path: %s,\n"
+    "body: %s,\n"
+    "content_legnth: %s,\n"
+    "content_type: %s\n", 
+    request.method,
+    request.path,
+    request.body,
+    request.content_length,
+    request.content_type
+  );
+}
+
 
 // TODO: Add types
 void WriteToLogs(const char *restrict format, ...) {
@@ -386,4 +412,53 @@ void WriteToLogs(const char *restrict format, ...) {
   fprintf(file, "[%s] %s", timestamp, logger_buffer);
 
   fclose(file);
+}
+
+void RunEpollLoop(const int server_fd) {
+  struct epoll_event events_buffer[MAX_EVENTS];
+  // EPOLLIN means ready for reading
+  struct epoll_event ev = {
+    .events = EPOLLIN,
+    .data.fd = server_fd
+  };
+  int epfd = epoll_create1(0);
+
+  epoll_ctl(epfd, EPOLL_CTL_ADD, server_fd, &ev);
+  
+  while (!stop_server) {
+    // Find open events and overwrite to events 
+    int n = epoll_wait(epfd, events_buffer, MAX_EVENTS, -1);
+  
+    // Look through all events  that are waiting
+    for (int i = 0; i < n; i++) {
+      int fd = events_buffer[i].data.fd;
+  
+      // If it is the server socket, it means a new client is trying to connect.
+      if (fd == server_fd) {
+        while (1) {
+          // Create a new client socket where client can bind to socket_fd
+          int client_fd = accept(server_fd, NULL, NULL);
+          // No more connections to accept to given server
+          // TODO: Maybe increase it on my own?
+          if (client_fd == -1) break;    
+
+          SetNonBlocking(client_fd);
+  
+          // Register this client socket with epoll.
+          // using EPOLLET so that it notifies when the fd is ready?
+          // not really sure about this one, but apprantly more performant
+           struct epoll_event client_ev = {
+            .events = EPOLLIN | EPOLLET,  
+            .data.fd = client_fd
+          };
+          epoll_ctl(epfd, EPOLL_CTL_ADD, client_fd, &client_ev);
+        }
+      } else {
+        // If it is client, then handle the request. 
+        HandleRequest(fd);
+      }
+    }
+  }
+
+  close(epfd);
 }

@@ -1,20 +1,19 @@
 # Seobeo 
 
-C "Seobeo".
+![SeoBeo logo](./seobeo.png)
 
-Can handle HTTP...
+**warning**: Still WIP so don't use it for anything production related. 
 
-- [x] GET
-- [x] POST
-- PUT
-- DELETE
+Seobeo is a lightweight C server built for educational and personal projects. I made this because I got tired of ever changing API libraries and always wanted to write a proper server in C. It's way easier to reason about from the ground up.
 
-Should be able to handle websocket
-
-## Get started.
-
-Fill this in
-
+## How to run 
 ```bash
-./app/start.sh
+./example/start.sh
 ```
+
+## TODO
+
+- Write simple tests for basic cases 
+- Websockets
+- Example using postgres lib
+- Dockerize it?

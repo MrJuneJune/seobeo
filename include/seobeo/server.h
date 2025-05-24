@@ -75,6 +75,7 @@ void ListenToSocket(int* server_fd);
 void ParseHttpRequest(char* buffer, HttpRequestType* request);
 void ExtractPathFromReferer(const char* string_value, char* out_path); 
 int  SanitizePaths(char* path);
+void DoPathHandle(int client_fd, HttpRequestType* request, PathToHandler* path_to_handler, size_t handler_size);
 void HandleGetRequest(int client_fd, HttpRequestType* request);
 void HandlePostRequest(int client_fd, HttpRequestType* request);
 void HandlePutRequest(int client_fd, HttpRequestType* request);

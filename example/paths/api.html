@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Requests</title>
+</head>
+<body>
+    <h1>API Request Tester</h1>
+
+    <button onclick="makeGetRequest()">GET /api/foo</button>
+    <button onclick="makePostRequest()">POST /api/foo</button>
+    <button onclick="makeDeleteRequest()">DELETE /api/foo</button>
+    <button onclick="makePutRequest()">PUT /api/foo</button>
+
+    <p id="response"></p>
+
+    <script>
+        // Function to handle GET request
+        function makeGetRequest() {
+            fetch('http://localhost:6969/api/foo', {
+                method: 'GET',
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('response').textContent = 'GET Response: ' + JSON.stringify(data);
+            })
+            .catch(error => {
+                document.getElementById('response').textContent = 'Error: ' + error;
+            });
+        }
+
+        // Function to handle POST request
+        function makePostRequest() {
+            fetch('http://localhost:6969/api/foo', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message: 'Hello from POST' })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('response').textContent = 'POST Response: ' + JSON.stringify(data);
+            })
+            .catch(error => {
+                document.getElementById('response').textContent = 'Error: ' + error;
+            });
+        }
+
+        // Function to handle DELETE request
+        function makeDeleteRequest() {
+            fetch('http://localhost:6969/api/foo', {
+                method: 'DELETE',
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('response').textContent = 'DELETE Response: ' + JSON.stringify(data);
+            })
+            .catch(error => {
+                document.getElementById('response').textContent = 'Error: ' + error;
+            });
+        }
+
+        // Function to handle PUT request
+        function makePutRequest() {
+            fetch('http://localhost:6969/api/foo', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message: 'Hello from PUT' })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('response').textContent = 'PUT Response: ' + JSON.stringify(data);
+            })
+            .catch(error => {
+                document.getElementById('response').textContent = 'Error: ' + error;
+            });
+        }
+    </script>
+</body>
+</html>
+

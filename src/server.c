@@ -240,9 +240,34 @@ void HandleGetRequest(
   while ((bytes = fread(response_body_buffer, 1, BUFFER_SIZE, file)) > 0) {
     send(client_fd, response_body_buffer, bytes, 0);
   }
+
+  // Add a case where it is just an API GET request?
   
   fclose(file);
   close(client_fd);
+}
+
+void DoPathHandle(
+  int client_fd,
+  HttpRequestType* request,
+  PathToHandler* path_to_handler,
+  size_t handler_size
+) {
+
+  int response = 0;
+  for (int i = 0; i < handler_size; i++)
+  {
+    if (strcmp(path_to_handler[i].path, request->path)==0) {
+      path_to_handler[i].handler(client_fd, request);
+      response = 1;
+      break;
+    }
+  } 
+
+  if (response != 1) {
+    SendHTTPErrorResponse(client_fd, HTTP_BAD_REQUEST);
+    return;
+  }
 }
 
 void HandlePostRequest(
@@ -259,20 +284,12 @@ void HandlePostRequest(
     return;
   }
 
-  int response = 0;
-  for (int i = 0; i < POST_REQUEST_HANDLER_SIZE; i++)
-  {
-    if (strcmp(POST_REQUEST_HANDLER[i].path, request->path)==0) {
-      POST_REQUEST_HANDLER[i].handler(client_fd, request);
-      response = 1;
-      break;
-    }
-  } 
-
-  if (response != 1) {
-    SendHTTPErrorResponse(client_fd, HTTP_BAD_REQUEST);
-    return;
-  }
+  DoPathHandle(
+    client_fd,
+    request,
+    POST_REQUEST_HANDLER,
+    POST_REQUEST_HANDLER_SIZE
+  );
 
   return;
 }
@@ -282,7 +299,7 @@ void HandlePutRequest(
   HttpRequestType* request
 ) {
   WriteToLogs(
-    "POST request to %s with content-type %s and length %d\n",
+    "PUT request to %s with content-type %s and length %d\n",
     request->path, request->content_type, request->content_length
   );
 
@@ -290,6 +307,13 @@ void HandlePutRequest(
     SendHTTPErrorResponse(client_fd, HTTP_BAD_REQUEST);
     return;
   }
+
+  DoPathHandle(
+    client_fd,
+    request,
+    PUT_REQUEST_HANDLER,
+    PUT_REQUEST_HANDLER_SIZE
+  );
 }
 
 void HandleDeleteRequest(
@@ -297,7 +321,7 @@ void HandleDeleteRequest(
   HttpRequestType* request
 ) {
   WriteToLogs(
-    "POST request to %s with content-type %s and length %d\n",
+    "DELETE request to %s with content-type %s and length %d\n",
     request->path, request->content_type, request->content_length
   );
 
@@ -305,6 +329,15 @@ void HandleDeleteRequest(
     SendHTTPErrorResponse(client_fd, HTTP_BAD_REQUEST);
     return;
   }
+
+  DoPathHandle(
+    client_fd,
+    request,
+    DELETE_REQUEST_HANDLER,
+    DELETE_REQUEST_HANDLER_SIZE
+  );
+
+  return;
 }
 
 void HandleRequest(int client_fd) { 
@@ -408,8 +441,8 @@ void WriteToLogs(const char *restrict format, ...) {
   FILE* file = fopen("logs/logers.txt", "a");
   GetTimeStamp(timestamp, sizeof(timestamp));
 
-  printf("[%s] %s", timestamp, logger_buffer);
-  fprintf(file, "[%s] %s", timestamp, logger_buffer);
+  printf("[%s] %s \n", timestamp, logger_buffer);
+  fprintf(file, "[%s] %s \n", timestamp, logger_buffer);
 
   fclose(file);
 }

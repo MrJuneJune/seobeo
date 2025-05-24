@@ -13,9 +13,28 @@ void handleFoo(int client_fd, HttpRequestType* request) {
 
 PathToHandler POST_REQUEST_HANDLER[] = {
   {
-    "/foo",
+    "api/foo",
     &handleFoo
   }
 };
 
 size_t POST_REQUEST_HANDLER_SIZE =  1;
+
+
+PathToHandler DELETE_REQUEST_HANDLER[] = {
+  {
+    "api/foo",
+    &handleFoo
+  }
+};
+
+size_t DELETE_REQUEST_HANDLER_SIZE =  1;
+
+PathToHandler PUT_REQUEST_HANDLER[] = {
+  {
+    "api/foo",
+    &handleFoo
+  }
+};
+
+size_t PUT_REQUEST_HANDLER_SIZE =  1;

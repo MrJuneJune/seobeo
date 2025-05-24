@@ -10,3 +10,7 @@ logs
 
 # ctag
 tags
+
+# Compiled files
+*.a
+*.so

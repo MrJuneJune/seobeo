@@ -12,7 +12,7 @@ int main() {
   int server_fd;
   struct sockaddr_in server_addr;
 
-  // starting server
+  // Starting server
   CreateSocket(&server_fd);
   BindToSocket(&server_fd, &server_addr);
   ListenToSocket(&server_fd);

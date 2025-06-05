@@ -200,6 +200,16 @@ void HandleGetRequest(
   {
     snprintf(file_path, sizeof(file_path), "api%s", request->path);
   }
+  else if (strstr(request->path, "/api"))
+  {
+    DoPathHandle(
+      client_fd,
+      request,
+      GET_REQUEST_HANDLER,
+      GET_REQUEST_HANDLER_SIZE
+    );
+    return;
+  }
   else
   {
     snprintf(file_path, sizeof(file_path), "paths%s.html", request->path);
@@ -237,11 +247,10 @@ void HandleGetRequest(
   send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
 
   size_t bytes;
-  while ((bytes = fread(response_body_buffer, 1, BUFFER_SIZE, file)) > 0) {
+  while ((bytes = fread(response_body_buffer, 1, BUFFER_SIZE, file)) > 0)
+  {
     send(client_fd, response_body_buffer, bytes, 0);
   }
-
-  // Add a case where it is just an API GET request?
   
   fclose(file);
   close(client_fd);
@@ -257,8 +266,14 @@ void DoPathHandle(
   int response = 0;
   for (int i = 0; i < handler_size; i++)
   {
+    WriteToLogs(
+      "TEST2\n, %s   %s", path_to_handler[i].path, request->path
+    );
     if (strcmp(path_to_handler[i].path, request->path)==0) {
       path_to_handler[i].handler(client_fd, request);
+      WriteToLogs(
+        "Has done something?"
+      );
       response = 1;
       break;
     }
@@ -266,6 +281,9 @@ void DoPathHandle(
 
   if (response != 1) {
     SendHTTPErrorResponse(client_fd, HTTP_BAD_REQUEST);
+    WriteToLogs(
+      "TEST3\n"
+    );
     return;
   }
 }

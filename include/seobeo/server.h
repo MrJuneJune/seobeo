@@ -17,6 +17,7 @@
 #include <sys/epoll.h>
 #include <errno.h>
 #include <signal.h>
+#include "connection.h"
 
 #define PORT 6969  // good number
 #define BUFFER_SIZE 8192 // ngnix default I believe
@@ -49,6 +50,7 @@
 
 // TODO: Create a global.h file for stuff like this.
 extern volatile sig_atomic_t stop_server;
+extern volatile ConnectionPool* connection_pool;
 
 typedef struct {
   int method;

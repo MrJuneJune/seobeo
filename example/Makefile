@@ -1,15 +1,12 @@
 CC = gcc
-CFLAGS = -Ilib -I-L. -lpq
+CFLAGS = -I../lib -lpq
 BIN_DIR = bin
 TEST_DIR = test
 LIB_DIR = ../lib
 MODEL_SRCS := $(wildcard $(LIB_DIR)/model_*.c)
 
-start: seobeo
-	gcc -I../include main.c -L. -lseobeo -Wl,-rpath,. -o $(BIN_DIR)/example_server
-
-seobeo: lib/connection.o auto_generate_sql
-	gcc -I../include ../src/*.c $(LIB_DIR)/connection.o $(MODEL_SRCS) -lpq -o lseobeo.so 
+start: lib/connection.o auto_generate_sql
+	gcc -I../include main.c ../src/*.c $(LIB_DIR)/connection.o  $(MODEL_SRCS) $(CFLAGS) -o $(BIN_DIR)/example_server && ./$(BIN_DIR)/example_server
 
 lib/connection.o: $(LIB_DIR)/connection.c $(LIB_DIR)/connection.h
 	$(CC) -c $(LIB_DIR)/connection.c -o $(LIB_DIR)/connection.o $(CFLAGS)

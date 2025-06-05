@@ -2,6 +2,8 @@
 #include "server.h"
 
 void handleFoo(int client_fd, HttpRequestType* request);
+extern PathToHandler GET_REQUEST_HANDLER[];
+extern size_t GET_REQUEST_HANDLER_SIZE;
 extern PathToHandler POST_REQUEST_HANDLER[];
 extern size_t POST_REQUEST_HANDLER_SIZE;
 extern PathToHandler DELETE_REQUEST_HANDLER[];

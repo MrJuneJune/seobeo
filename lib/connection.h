@@ -11,9 +11,9 @@ typedef struct {
   int num_connections;
 } ConnectionPool;
 
-void InitPool(ConnectionPool *pool, const char *conninfo);
-PGconn* BorrowConnection(ConnectionPool *pool); 
-void ReleaseConnection(ConnectionPool *pool, PGconn *conn); 
-void ClosePool(ConnectionPool *pool); 
+void InitPool(volatile ConnectionPool *pool, const char *conninfo);
+PGconn* BorrowConnection(volatile ConnectionPool *pool); 
+void ReleaseConnection(volatile ConnectionPool *pool, PGconn *conn); 
+void ClosePool(volatile ConnectionPool *pool); 
 
 #endif // CONNECTION

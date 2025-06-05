@@ -1,6 +1,6 @@
 #include "connection.h" 
 
-void InitPool(ConnectionPool *pool, const char *conninfo)
+void InitPool(volatile ConnectionPool *pool, const char *conninfo)
 {
   for (int i = 0; i < MAX_CONNECTIONS; i++) {
     pool->connections[i] = NULL;
@@ -17,7 +17,7 @@ void InitPool(ConnectionPool *pool, const char *conninfo)
   }
 }
 
-PGconn* BorrowConnection(ConnectionPool *pool)
+PGconn* BorrowConnection(volatile ConnectionPool *pool)
 {
   if (pool->num_connections == 0)
   {
@@ -35,7 +35,7 @@ PGconn* BorrowConnection(ConnectionPool *pool)
   return conn;
 }
 
-void ReleaseConnection(ConnectionPool *pool, PGconn *conn)
+void ReleaseConnection(volatile ConnectionPool *pool, PGconn *conn)
 {
   if (pool->num_connections >= MAX_CONNECTIONS)
   {
@@ -46,7 +46,7 @@ void ReleaseConnection(ConnectionPool *pool, PGconn *conn)
   pool->num_connections++;
 }
 
-void ClosePool(ConnectionPool *pool)
+void ClosePool(volatile ConnectionPool *pool)
 {
   for (int i = 0; i < pool->num_connections; i++) {
     PQfinish(pool->connections[i]);

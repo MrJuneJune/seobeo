@@ -1,6 +1,8 @@
 # Seobeo 
 
-![SeoBeo logo](./seobeo.png)
+<p align="center">
+  <img src="/seobeo.png" width="200" height="200" alt="SeoBeo Logo"/>
+</p>
 
 **warning**: Still WIP so don't use it for anything production related. 
 

@@ -1,5 +1,5 @@
-#include <seobeo/router.h>
-#include "models.h"
+#include "router.h"
+// #include "models.h"
 
 
 void handleFoo(int client_fd, HttpRequestType* request)
@@ -8,16 +8,16 @@ void handleFoo(int client_fd, HttpRequestType* request)
   const char* content_type = "application/json";
   char* response = "{\"foo\": \"bar\"}";
 
-  char response2[BUFFER_SIZE];
-  PGconn *pg_conn = BorrowConnection(connection_pool);
-  PersonsQuery p = QueryPersons(pg_conn, "1=1");
-  printf("%s\n", p.Persons->personid);
-  sprintf(response2, "{\"personid\": \"%s\"}", p.Persons->personid);
+  // char response2[BUFFER_SIZE];
+  // PGconn *pg_conn = BorrowConnection(connection_pool);
+  // PersonsQuery p = QueryPersons(pg_conn, "1=1");
+  // printf("%s\n", p.Persons->personid);
+  // sprintf(response2, "{\"personid\": \"%s\"}", p.Persons->personid);
 
 
-  GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, strlen(response2));
+  GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, strlen(response));
   send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
-  send(client_fd,  response2, strlen(response2), 0);
+  send(client_fd,  response, strlen(response), 0);
   return;
 }
 

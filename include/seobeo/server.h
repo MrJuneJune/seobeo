@@ -17,7 +17,6 @@
 #include <sys/epoll.h>
 #include <errno.h>
 #include <signal.h>
-#include "connection.h"
 
 #define PORT 6969  // good number
 #define BUFFER_SIZE 8192 // ngnix default I believe
@@ -50,7 +49,6 @@
 
 // TODO: Create a global.h file for stuff like this.
 extern volatile sig_atomic_t stop_server;
-extern volatile ConnectionPool* connection_pool;
 
 typedef struct {
   int method;
@@ -66,6 +64,18 @@ typedef struct {
   const char* path;
   RequestHandler* handler;
 } PathToHandler;
+
+// Create a separate router header and src file to handle these.
+extern PathToHandler GET_REQUEST_HANDLER[];
+extern size_t GET_REQUEST_HANDLER_SIZE;
+extern PathToHandler POST_REQUEST_HANDLER[];
+extern size_t POST_REQUEST_HANDLER_SIZE;
+extern PathToHandler DELETE_REQUEST_HANDLER[];
+extern size_t POST_REQUEST_HANDLER_SIZE;
+extern PathToHandler DELETE_REQUEST_HANDLER[];
+extern size_t DELETE_REQUEST_HANDLER_SIZE;
+extern PathToHandler PUT_REQUEST_HANDLER[];
+extern size_t PUT_REQUEST_HANDLER_SIZE;
 
 // Server Related
 int SetNonBlocking(int fd);

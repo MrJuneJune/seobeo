@@ -1,5 +1,4 @@
 #include <seobeo/helper.h>
-#include <seobeo/router.h>
 #include <seobeo/server.h>
 
 // --- Response -- //
@@ -38,7 +37,8 @@ void GenerateResponseHeader
   );
 }
 
-void SendHTTPErrorResponse(int client_fd, int status_code) {
+void SendHTTPErrorResponse(int client_fd, int status_code)
+{
   char header[BUFFER_SIZE] = {0};
   char body[BUFFER_SIZE] = {0};
   

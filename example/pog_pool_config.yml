@@ -1,0 +1,3 @@
+database_url: postgres://pog_pool:pog_pool@localhost:4269/pog_pool
+input_model_folder: ./models
+output_model_code_folder: ./build

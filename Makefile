@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Iinclude -I./example/third_party/include -Lbuild -L./example/third_party -lpog_pool -lseobeo -lpq
+CFLAGS = -Iinclude -I./example/third_party/include -Lbuild -L./example/third_party -lpog_pool -lseobeo -lpq -ljansson
 BIN_DIR = bin
 SRC_DIR = src
 BUILD_DIR = build

@@ -160,14 +160,17 @@ void ParseHttpRequest(char* buffer, HttpRequestType* request) {
     }
   }
 
-  request->body = malloc(request->content_length+1);
+  request->body = malloc(request->content_length+4);
   if (
     (request->method == HTTP_METHOD_POST || request->method == HTTP_METHOD_PUT) && 
     request->content_length > 0
   ) {
-    char* body_start = strstr(buffer, "\r\n\r\n");
-    memcpy(request->body, body_start, request->content_length);
-    request->body[request->content_length] = '\0';
+   char* body_start = strstr(buffer, "\r\n\r\n");
+   if (body_start) {
+     body_start += 4;  // Skip past the CRLFCRLF to the actual body
+     memcpy(request->body, body_start, request->content_length);
+     request->body[request->content_length] = '\0';
+   }
   }
 }
 

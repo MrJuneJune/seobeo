@@ -43,53 +43,87 @@ void handlePostFoo(int client_fd, HttpRequestType* request)
   const char *content_type = "application/json";
   char *response;
 
-  PGconn *pg_conn = BorrowConnection(connection_pool);
+  printf("Request: %s\n", request->body);
+
+  json_error_t error;
+  json_t *root = json_loads(request->body, 0, &error);
+  if (!root) {
+    response = "{\"error\": \"Invalid JSON\"}";
+    GenerateResponseHeader(response_header_buffer, HTTP_BAD_REQUEST, content_type, strlen(response));
+    send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
+    send(client_fd,  response, strlen(response), 0);
+    return;
+  }
 
   ExampleTable example = {
-    .id = "b6d4c431-f327-4a4a-9345-320aa3cd7e31",
-    .small_int_col = 1,
-    .int_col = 42,
-    .big_int_col = 9000000000LL,
-    .decimal_col = 12.34,
-    .numeric_col = 56.789,
-    .real_col = 1.23,
-    .double_col = 9.87,
+    .id = strdup(json_string_value(json_object_get(root, "id"))),
+    .small_int_col = json_integer_value(json_object_get(root, "small_int_col")),
+    .int_col = json_integer_value(json_object_get(root, "int_col")),
+    .big_int_col = json_integer_value(json_object_get(root, "big_int_col")),
+    .decimal_col = json_real_value(json_object_get(root, "decimal_col")),
+    .numeric_col = json_real_value(json_object_get(root, "numeric_col")),
+    .real_col = json_real_value(json_object_get(root, "real_col")),
+    .double_col = json_real_value(json_object_get(root, "double_col")),
     .serial_col = NULL,
-  
-    .char_col = "char_data",
-    .varchar_col = "varchar_data",
-    .text_col = "This is a long text",
-  
-    .date_col = "2025-06-05",
-    .time_col = "12:34:56",
-    .timestamp_col = "2025-06-05 12:34:56",
-    .timestamptz_col = "2025-06-05 12:34:56+00",
-  
-    .boolean_col = 1,
-    .another_uuid = "d1b355c0-f348-4bcf-b3df-ef95b3a8a3ad",
-  
-    .json_col = "{\"key\": \"value\"}",
-    .jsonb_col = "{\"key\": \"value\"}",
-  
-    .int_array_col = (int[]){1,2,3},
-    .int_array_col_len = 3,
-    .text_array_col = (char* []){"apple","banana"},
-    .text_array_col_len = 2,
-  
-    .status_col = "active",
-    .file_col = "\\x68656c6c6f" 
+    .char_col = strdup(json_string_value(json_object_get(root, "char_col"))),
+    .varchar_col = strdup(json_string_value(json_object_get(root, "varchar_col"))),
+    .text_col = strdup(json_string_value(json_object_get(root, "text_col"))),
+    .date_col = strdup(json_string_value(json_object_get(root, "date_col"))),
+    .time_col = strdup(json_string_value(json_object_get(root, "time_col"))),
+    .timestamp_col = strdup(json_string_value(json_object_get(root, "timestamp_col"))),
+    .timestamptz_col = strdup(json_string_value(json_object_get(root, "timestamptz_col"))),
+    .boolean_col = json_boolean_value(json_object_get(root, "boolean_col")),
+    .another_uuid = strdup(json_string_value(json_object_get(root, "another_uuid"))),
+    .json_col = strdup(json_dumps(json_object_get(root, "json_col"), 0)),
+    .jsonb_col = strdup(json_dumps(json_object_get(root, "jsonb_col"), 0)),
+    .int_array_col = NULL,
+    .int_array_col_len = 0,
+    .text_array_col = NULL,
+    .text_array_col_len = 0,
+    .status_col = strdup(json_string_value(json_object_get(root, "status_col"))),
+    .file_col = strdup(json_string_value(json_object_get(root, "file_col")))
   };
 
-  if (InsertExampleTable(pg_conn, example).status == PGRES_FATAL_ERROR)
-  {
-    response = "{\"insert\": \"failed\"}";
-  }
-  else
-  {
-    response = "{\"insert\": \"successful\"}";
+  // --- int_array_col ---
+  json_t *int_arr = json_object_get(root, "int_array_col");
+  if (json_is_array(int_arr)) {
+    size_t len = json_array_size(int_arr);
+    example.int_array_col_len = len;
+    example.int_array_col = malloc(sizeof(int) * len);
+    for (size_t i = 0; i < len; ++i) {
+      json_t *val = json_array_get(int_arr, i);
+      example.int_array_col[i] = json_integer_value(val);
+    }
+  } else {
+    example.int_array_col = NULL;
+    example.int_array_col_len = 0;
   }
 
+  // --- text_array_col ---
+  json_t *text_arr = json_object_get(root, "text_array_col");
+  if (json_is_array(text_arr)) {
+    size_t len = json_array_size(text_arr);
+    example.text_array_col_len = len;
+    example.text_array_col = malloc(sizeof(char *) * len);
+    for (size_t i = 0; i < len; ++i) {
+      json_t *val = json_array_get(text_arr, i);
+      const char *str = json_string_value(val);
+      example.text_array_col[i] = strdup(str ? str : "");
+    }
+  } else {
+    example.text_array_col = NULL;
+    example.text_array_col_len = 0;
+  }
+
+  PGconn *pg_conn = BorrowConnection(connection_pool);
+  if (InsertExampleTable(pg_conn, example).status == PGRES_FATAL_ERROR) {
+    response = "{\"insert\": \"failed\"}";
+  } else {
+    response = "{\"insert\": \"successful\"}";
+  }
   ReleaseConnection(connection_pool, pg_conn);
+
+  json_decref(root); // Free memory
 
   GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, strlen(response));
   send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
@@ -102,57 +136,87 @@ void handlePutFoo(int client_fd, HttpRequestType* request)
   const char *content_type = "application/json";
   char *response;
 
-  PGconn *pg_conn = BorrowConnection(connection_pool);
+  json_error_t error;
+  json_t *root = json_loads(request->body, 0, &error);
+  if (!root) {
+    response = "{\"error\": \"Invalid JSON\"}";
+    GenerateResponseHeader(response_header_buffer, HTTP_BAD_REQUEST, content_type, strlen(response));
+    send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
+    send(client_fd, response, strlen(response), 0);
+    return;
+  }
 
   ExampleTable example = {
-    .id = "b6d4c431-f327-4a4a-9345-320aa3cd7e31",
-    .small_int_col = 1,
-    .int_col = 42,
-    .big_int_col = 9000000000LL,
-    .decimal_col = 12.34,
-    .numeric_col = 56.789,
-    .real_col = 1.23,
-    .double_col = 9.87,
+    .id = strdup(json_string_value(json_object_get(root, "id"))),
+    .small_int_col = json_integer_value(json_object_get(root, "small_int_col")),
+    .int_col = json_integer_value(json_object_get(root, "int_col")),
+    .big_int_col = json_integer_value(json_object_get(root, "big_int_col")),
+    .decimal_col = json_real_value(json_object_get(root, "decimal_col")),
+    .numeric_col = json_real_value(json_object_get(root, "numeric_col")),
+    .real_col = json_real_value(json_object_get(root, "real_col")),
+    .double_col = json_real_value(json_object_get(root, "double_col")),
     .serial_col = NULL,
-  
-    .char_col = "updated",
-    .varchar_col = "varchar_data",
-    .text_col = "This is a long text",
-  
-    .date_col = "2025-06-05",
-    .time_col = "12:34:56",
-    .timestamp_col = "2025-06-05 12:34:56",
-    .timestamptz_col = "2025-06-05 12:34:56+00",
-  
-    .boolean_col = 1,
-    .another_uuid = "d1b355c0-f348-4bcf-b3df-ef95b3a8a3ad",
-  
-    .json_col = "{\"key\": \"value\"}",
-    .jsonb_col = "{\"key\": \"value\"}",
-  
-    .int_array_col = (int[]){1,2,3},
-    .int_array_col_len = 3,
-    .text_array_col = (char* []){"apple","banana"},
-    .text_array_col_len = 2,
-  
-    .status_col = "active",
-    .file_col = "\\x68656c6c6f" 
+    .char_col = strdup(json_string_value(json_object_get(root, "char_col"))),
+    .varchar_col = strdup(json_string_value(json_object_get(root, "varchar_col"))),
+    .text_col = strdup(json_string_value(json_object_get(root, "text_col"))),
+    .date_col = strdup(json_string_value(json_object_get(root, "date_col"))),
+    .time_col = strdup(json_string_value(json_object_get(root, "time_col"))),
+    .timestamp_col = strdup(json_string_value(json_object_get(root, "timestamp_col"))),
+    .timestamptz_col = strdup(json_string_value(json_object_get(root, "timestamptz_col"))),
+    .boolean_col = json_boolean_value(json_object_get(root, "boolean_col")),
+    .another_uuid = strdup(json_string_value(json_object_get(root, "another_uuid"))),
+    .json_col = strdup(json_dumps(json_object_get(root, "json_col"), 0)),
+    .jsonb_col = strdup(json_dumps(json_object_get(root, "jsonb_col"), 0)),
+    .status_col = strdup(json_string_value(json_object_get(root, "status_col"))),
+    .file_col = strdup(json_string_value(json_object_get(root, "file_col")))
   };
 
-  if (UpdateExampleTable(pg_conn, example, "id = 'b6d4c431-f327-4a4a-9345-320aa3cd7e31'").status == PGRES_FATAL_ERROR)
-  {
-    response = "{\"insert\": \"failed\"}";
+  // --- int_array_col ---
+  json_t *int_arr = json_object_get(root, "int_array_col");
+  if (json_is_array(int_arr)) {
+    size_t len = json_array_size(int_arr);
+    example.int_array_col_len = len;
+    example.int_array_col = malloc(sizeof(int) * len);
+    for (size_t i = 0; i < len; ++i) {
+      json_t *val = json_array_get(int_arr, i);
+      example.int_array_col[i] = json_integer_value(val);
+    }
+  } else {
+    example.int_array_col = NULL;
+    example.int_array_col_len = 0;
   }
-  else
-  {
-    response = "{\"insert\": \"successful\"}";
+
+  // --- text_array_col ---
+  json_t *text_arr = json_object_get(root, "text_array_col");
+  if (json_is_array(text_arr)) {
+    size_t len = json_array_size(text_arr);
+    example.text_array_col_len = len;
+    example.text_array_col = malloc(sizeof(char *) * len);
+    for (size_t i = 0; i < len; ++i) {
+      json_t *val = json_array_get(text_arr, i);
+      const char *str = json_string_value(val);
+      example.text_array_col[i] = strdup(str ? str : "");
+    }
+  } else {
+    example.text_array_col = NULL;
+    example.text_array_col_len = 0;
+  }
+
+  PGconn *pg_conn = BorrowConnection(connection_pool);
+
+  const char *where_clause = "id = 'b6d4c431-f327-4a4a-9345-320aa3cd7e31'";
+  if (UpdateExampleTable(pg_conn, example, where_clause).status == PGRES_FATAL_ERROR) {
+    response = "{\"update\": \"failed\"}";
+  } else {
+    response = "{\"update\": \"successful\"}";
   }
 
   ReleaseConnection(connection_pool, pg_conn);
+  json_decref(root);
 
   GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, strlen(response));
   send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
-  send(client_fd,  response, strlen(response), 0);
+  send(client_fd, response, strlen(response), 0);
 }
 
 void handleDeleteFoo(int client_fd, HttpRequestType* request)
@@ -161,9 +225,19 @@ void handleDeleteFoo(int client_fd, HttpRequestType* request)
   const char *content_type = "application/json";
   char *response;
 
-  PGconn *pg_conn = BorrowConnection(connection_pool);
+  json_error_t error;
+  json_t *root = json_loads(request->body, 0, &error);
+  if (!root) {
+    response = "{\"error\": \"Invalid JSON\"}";
+    GenerateResponseHeader(response_header_buffer, HTTP_BAD_REQUEST, content_type, strlen(response));
+    send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
+    send(client_fd, response, strlen(response), 0);
+    return;
+  }
 
-  char *where_clause = "id = \'b6d4c431-f327-4a4a-9345-320aa3cd7e31\'";
+  PGconn *pg_conn = BorrowConnection(connection_pool);
+  char where_clause[1024];
+  snprintf(where_clause, strlen(where_clause), "id = \'%s\'", json_string_value(json_object_get(root, "id")));
   if (DeleteExampleTable(pg_conn, where_clause).status==PGRES_FATAL_ERROR)
   {
     response = "{\"status\": \"failed\"}";

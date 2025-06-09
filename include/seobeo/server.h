@@ -1,6 +1,7 @@
 #ifndef SEOBEO_SERVER_H
 #define SEOBEO_SERVER_H
 
+// OS depedent
 #include <arpa/inet.h>   
 #include <fcntl.h>
 #include <netinet/in.h>   
@@ -17,6 +18,9 @@
 #include <sys/epoll.h>
 #include <errno.h>
 #include <signal.h>
+
+// third party
+#include <jansson.h>
 
 #define PORT 6969  // good number
 #define BUFFER_SIZE 8192 // ngnix default I believe

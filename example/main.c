@@ -12,25 +12,6 @@ void handle_sigint(int sig) {
 }
 
 // --- Routing logic ---
-void handleFoo(int client_fd, HttpRequestType* request)
-{
-  char response_header_buffer[BUFFER_SIZE];
-  const char* content_type = "application/json";
-  char* response = "{\"foo\": \"bar\"}";
-
-  // char response[BUFFER_SIZE];
-  // PGconn *pg_conn = BorrowConnection(connection_pool);
-  // PersonsQuery p = QueryPersons(pg_conn, "1=1");
-  // printf("%s\n", p.Persons->personid);
-  // sprintf(response, "{\"personid\": \"%s\"}", p.Persons->personid);
-
-
-  GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, strlen(response));
-  send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
-  send(client_fd,  response, strlen(response), 0);
-  return;
-}
-
 void handleGetExampleTable(int client_fd, HttpRequestType* request)
 {
   char response_header_buffer[BUFFER_SIZE];
@@ -99,7 +80,66 @@ void handlePostFoo(int client_fd, HttpRequestType* request)
     .file_col = "\\x68656c6c6f" 
   };
 
-  if (InsertExampleTable(pg_conn, example)==1)
+  if (InsertExampleTable(pg_conn, example).status == PGRES_FATAL_ERROR)
+  {
+    response = "{\"insert\": \"failed\"}";
+  }
+  else
+  {
+    response = "{\"insert\": \"successful\"}";
+  }
+
+  ReleaseConnection(connection_pool, pg_conn);
+
+  GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, strlen(response));
+  send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
+  send(client_fd,  response, strlen(response), 0);
+}
+
+void handlePutFoo(int client_fd, HttpRequestType* request)
+{
+  char response_header_buffer[BUFFER_SIZE];
+  const char *content_type = "application/json";
+  char *response;
+
+  PGconn *pg_conn = BorrowConnection(connection_pool);
+
+  ExampleTable example = {
+    .id = "b6d4c431-f327-4a4a-9345-320aa3cd7e31",
+    .small_int_col = 1,
+    .int_col = 42,
+    .big_int_col = 9000000000LL,
+    .decimal_col = 12.34,
+    .numeric_col = 56.789,
+    .real_col = 1.23,
+    .double_col = 9.87,
+    .serial_col = NULL,
+  
+    .char_col = "updated",
+    .varchar_col = "varchar_data",
+    .text_col = "This is a long text",
+  
+    .date_col = "2025-06-05",
+    .time_col = "12:34:56",
+    .timestamp_col = "2025-06-05 12:34:56",
+    .timestamptz_col = "2025-06-05 12:34:56+00",
+  
+    .boolean_col = 1,
+    .another_uuid = "d1b355c0-f348-4bcf-b3df-ef95b3a8a3ad",
+  
+    .json_col = "{\"key\": \"value\"}",
+    .jsonb_col = "{\"key\": \"value\"}",
+  
+    .int_array_col = (int[]){1,2,3},
+    .int_array_col_len = 3,
+    .text_array_col = (char* []){"apple","banana"},
+    .text_array_col_len = 2,
+  
+    .status_col = "active",
+    .file_col = "\\x68656c6c6f" 
+  };
+
+  if (UpdateExampleTable(pg_conn, example, "id = 'b6d4c431-f327-4a4a-9345-320aa3cd7e31'").status == PGRES_FATAL_ERROR)
   {
     response = "{\"insert\": \"failed\"}";
   }
@@ -124,7 +164,7 @@ void handleDeleteFoo(int client_fd, HttpRequestType* request)
   PGconn *pg_conn = BorrowConnection(connection_pool);
 
   char *where_clause = "id = \'b6d4c431-f327-4a4a-9345-320aa3cd7e31\'";
-  if (DeleteExampleTable(pg_conn, where_clause)==1)
+  if (DeleteExampleTable(pg_conn, where_clause).status==PGRES_FATAL_ERROR)
   {
     response = "{\"status\": \"failed\"}";
   }
@@ -170,7 +210,7 @@ size_t DELETE_REQUEST_HANDLER_SIZE =  1;
 PathToHandler PUT_REQUEST_HANDLER[] = {
   {
     "/api/foo",
-    &handleFoo
+    &handlePutFoo
   }
 };
 size_t PUT_REQUEST_HANDLER_SIZE =  1;

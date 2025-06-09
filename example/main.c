@@ -37,12 +37,17 @@ void handleGetExampleTable(int client_fd, HttpRequestType* request)
   const char* content_type = "application/json";
   char response[BUFFER_SIZE];
 
-
-  // char* response = "{\"foo\": \"bar\"}";
-
   PGconn *pg_conn = BorrowConnection(connection_pool);
-  ExampleTableQuery etq = QueryExampleTable(pg_conn, "*","1=1");
-  sprintf(response, SerializeExampleTable(*etq.ExampleTable));
+  ExampleTableQuery etq = QueryExampleTable(pg_conn, "*","id=\'b6d4c431-f327-4a4a-9345-320aa3cd7e31\'");
+  if (etq.ExampleTable != NULL)
+  {
+    sprintf(response, SerializeExampleTable(*etq.ExampleTable));
+  }
+  else
+  {
+    char *tmp = "{\"status\": \"failed\"}\0";
+    strcpy(response, tmp);
+  }
   ReleaseConnection(connection_pool, pg_conn) ;
 
   GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, strlen(response));
@@ -54,7 +59,8 @@ void handleGetExampleTable(int client_fd, HttpRequestType* request)
 void handlePostFoo(int client_fd, HttpRequestType* request)
 {
   char response_header_buffer[BUFFER_SIZE];
-  const char* content_type = "application/json";
+  const char *content_type = "application/json";
+  char *response;
 
   PGconn *pg_conn = BorrowConnection(connection_pool);
 
@@ -93,10 +99,41 @@ void handlePostFoo(int client_fd, HttpRequestType* request)
     .file_col = "\\x68656c6c6f" 
   };
 
-  InsertExampleTable(pg_conn, example);
-  ReleaseConnection(connection_pool, pg_conn) ;
-  
-  char* response = "{\"insert\": \"successful\"}";
+  if (InsertExampleTable(pg_conn, example)==1)
+  {
+    response = "{\"insert\": \"failed\"}";
+  }
+  else
+  {
+    response = "{\"insert\": \"successful\"}";
+  }
+
+  ReleaseConnection(connection_pool, pg_conn);
+
+  GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, strlen(response));
+  send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
+  send(client_fd,  response, strlen(response), 0);
+}
+
+void handleDeleteFoo(int client_fd, HttpRequestType* request)
+{
+  char response_header_buffer[BUFFER_SIZE];
+  const char *content_type = "application/json";
+  char *response;
+
+  PGconn *pg_conn = BorrowConnection(connection_pool);
+
+  char *where_clause = "id = \'b6d4c431-f327-4a4a-9345-320aa3cd7e31\'";
+  if (DeleteExampleTable(pg_conn, where_clause)==1)
+  {
+    response = "{\"status\": \"failed\"}";
+  }
+  else
+  {
+    response = "{\"status\": \"successful\"}";
+  }
+
+  ReleaseConnection(connection_pool, pg_conn);
 
   GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, strlen(response));
   send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
@@ -109,7 +146,6 @@ PathToHandler GET_REQUEST_HANDLER[] = {
     &handleGetExampleTable
   }
 };
-
 size_t GET_REQUEST_HANDLER_SIZE =  1;
 
 
@@ -119,14 +155,13 @@ PathToHandler POST_REQUEST_HANDLER[] = {
     &handlePostFoo
   }
 };
-
 size_t POST_REQUEST_HANDLER_SIZE =  1;
 
 
 PathToHandler DELETE_REQUEST_HANDLER[] = {
   {
     "/api/foo",
-    &handleFoo
+    &handleDeleteFoo
   }
 };
 
@@ -138,7 +173,6 @@ PathToHandler PUT_REQUEST_HANDLER[] = {
     &handleFoo
   }
 };
-
 size_t PUT_REQUEST_HANDLER_SIZE =  1;
 
 // --- main server loop ---
@@ -154,7 +188,7 @@ int main() {
   // DB manager
   ConnectionPool connection_pool_real={0};
   connection_pool = &connection_pool_real;
-  InitPool(connection_pool, "postgres://mrjunejune:june@localhost:5432/mrjunejune");
+  InitPool(connection_pool, "postgres://pog_pool:pog_pool@localhost:4269/pog_pool");
 
   // Gracefully stop...
   signal(SIGINT, handle_sigint);

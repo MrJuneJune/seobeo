@@ -266,13 +266,10 @@ void DoPathHandle(
   int response = 0;
   for (int i = 0; i < handler_size; i++)
   {
-    WriteToLogs(
-      "TEST2\n, %s   %s", path_to_handler[i].path, request->path
-    );
     if (strcmp(path_to_handler[i].path, request->path)==0) {
       path_to_handler[i].handler(client_fd, request);
       WriteToLogs(
-        "Has done something?"
+        "Found a path"
       );
       response = 1;
       break;
@@ -281,9 +278,6 @@ void DoPathHandle(
 
   if (response != 1) {
     SendHTTPErrorResponse(client_fd, HTTP_BAD_REQUEST);
-    WriteToLogs(
-      "TEST3\n"
-    );
     return;
   }
 }

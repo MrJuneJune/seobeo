@@ -1,5 +1,4 @@
 #include <seobeo/helper.h>
-#include <seobeo/router.h>
 #include <seobeo/server.h>
 
 // --- Response -- //
@@ -38,7 +37,8 @@ void GenerateResponseHeader
   );
 }
 
-void SendHTTPErrorResponse(int client_fd, int status_code) {
+void SendHTTPErrorResponse(int client_fd, int status_code)
+{
   char header[BUFFER_SIZE] = {0};
   char body[BUFFER_SIZE] = {0};
   
@@ -160,14 +160,17 @@ void ParseHttpRequest(char* buffer, HttpRequestType* request) {
     }
   }
 
-  request->body = malloc(request->content_length+1);
+  request->body = malloc(request->content_length+4);
   if (
     (request->method == HTTP_METHOD_POST || request->method == HTTP_METHOD_PUT) && 
     request->content_length > 0
   ) {
-    char* body_start = strstr(buffer, "\r\n\r\n");
-    memcpy(request->body, body_start, request->content_length);
-    request->body[request->content_length] = '\0';
+   char* body_start = strstr(buffer, "\r\n\r\n");
+   if (body_start) {
+     body_start += 4;  // Skip past the CRLFCRLF to the actual body
+     memcpy(request->body, body_start, request->content_length);
+     request->body[request->content_length] = '\0';
+   }
   }
 }
 
@@ -199,6 +202,16 @@ void HandleGetRequest(
   else if (strstr(request->path, ".json"))
   {
     snprintf(file_path, sizeof(file_path), "api%s", request->path);
+  }
+  else if (strstr(request->path, "/api"))
+  {
+    DoPathHandle(
+      client_fd,
+      request,
+      GET_REQUEST_HANDLER,
+      GET_REQUEST_HANDLER_SIZE
+    );
+    return;
   }
   else
   {
@@ -237,11 +250,10 @@ void HandleGetRequest(
   send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
 
   size_t bytes;
-  while ((bytes = fread(response_body_buffer, 1, BUFFER_SIZE, file)) > 0) {
+  while ((bytes = fread(response_body_buffer, 1, BUFFER_SIZE, file)) > 0)
+  {
     send(client_fd, response_body_buffer, bytes, 0);
   }
-
-  // Add a case where it is just an API GET request?
   
   fclose(file);
   close(client_fd);
@@ -259,6 +271,9 @@ void DoPathHandle(
   {
     if (strcmp(path_to_handler[i].path, request->path)==0) {
       path_to_handler[i].handler(client_fd, request);
+      WriteToLogs(
+        "Found a path"
+      );
       response = 1;
       break;
     }

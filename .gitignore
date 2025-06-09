@@ -1,6 +1,6 @@
 # executable files
-example_server
-main
+bin
+build
 
 # logger directory created lib
 logs
@@ -10,3 +10,7 @@ logs
 
 # ctag
 tags
+
+# Compiled files
+*.a
+*.so

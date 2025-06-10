@@ -3,46 +3,413 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>API Requests</title>
+  <title>API Request Tester</title>
   <style>
-    input, textarea { display: block; margin-bottom: 10px; width: 300px; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(45deg, #2c3e50, #3498db);
+      color: white;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 1.1rem;
+    }
+
+    .main-content {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: 2rem;
+      padding: 2rem;
+    }
+
+    .form-section {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .form-section h2 {
+      color: #2c3e50;
+      margin-bottom: 1.5rem;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1rem;
+    }
+
+    .field-group {
+      margin-bottom: 1rem;
+    }
+
+    .field-group label {
+      display: block;
+      color: #34495e;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .field-group input,
+    .field-group textarea {
+      width: 100%;
+      padding: 0.75rem;
+      border: 2px solid #e1e8ed;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      transition: all 0.3s ease;
+      background: #fafbfc;
+    }
+
+    .field-group input:focus,
+    .field-group textarea:focus {
+      outline: none;
+      border-color: #3498db;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    .field-group textarea {
+      resize: vertical;
+      min-height: 80px;
+      font-family: 'Monaco', 'Menlo', monospace;
+    }
+
+    .checkbox-field {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .checkbox-field input[type="checkbox"] {
+      width: auto;
+      transform: scale(1.2);
+    }
+
+    .controls-section {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      height: fit-content;
+    }
+
+    .controls-section h2 {
+      color: #2c3e50;
+      margin-bottom: 1.5rem;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .button-group {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .api-button {
+      padding: 0.875rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .api-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .api-button:active {
+      transform: translateY(0);
+    }
+
+    .btn-get {
+      background: linear-gradient(45deg, #27ae60, #2ecc71);
+      color: white;
+    }
+
+    .btn-post {
+      background: linear-gradient(45deg, #3498db, #5dade2);
+      color: white;
+    }
+
+    .btn-put {
+      background: linear-gradient(45deg, #f39c12, #f1c40f);
+      color: white;
+    }
+
+    .btn-delete {
+      background: linear-gradient(45deg, #e74c3c, #ec7063);
+      color: white;
+    }
+
+    .response-section {
+      grid-column: span 2;
+      background: #2c3e50;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-top: 1rem;
+    }
+
+    .response-section h3 {
+      color: #ecf0f1;
+      margin-bottom: 1rem;
+      font-size: 1.25rem;
+    }
+
+    .response-content {
+      background: #34495e;
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 0.85rem;
+      color: #ecf0f1;
+      white-space: pre-wrap;
+      overflow-x: auto;
+      min-height: 100px;
+      border: 1px solid #4a6741;
+    }
+
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .status-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+
+    .status-success { background: #27ae60; }
+    .status-error { background: #e74c3c; }
+    .status-pending { background: #f39c12; }
+
+    @media (max-width: 768px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+      
+      .response-section {
+        grid-column: span 1;
+      }
+      
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .header h1 {
+        font-size: 2rem;
+      }
+    }
   </style>
 </head>
 <body>
-  <h1>API Request Tester</h1>
+  <div class="container">
+    <div class="header">
+      <h1>API Request Tester</h1>
+      <p>Professional tool for testing REST API endpoints</p>
+    </div>
 
-  <form id="exampleForm">
-    <label>id: <input name="id" value="b6d4c431-f327-4a4a-9345-320aa3cd7e31" /></label>
-    <label>small_int_col: <input name="small_int_col" type="number" value="1" /></label>
-    <label>int_col: <input name="int_col" type="number" value="42" /></label>
-    <label>big_int_col: <input name="big_int_col" type="number" value="9000000000" /></label>
-    <label>decimal_col: <input name="decimal_col" type="number" step="any" value="12.34" /></label>
-    <label>numeric_col: <input name="numeric_col" type="number" step="any" value="56.789" /></label>
-    <label>real_col: <input name="real_col" type="number" step="any" value="1.23" /></label>
-    <label>double_col: <input name="double_col" type="number" step="any" value="9.87" /></label>
-    <label>char_col: <input name="char_col" value="char_data" /></label>
-    <label>varchar_col: <input name="varchar_col" value="varchar_data" /></label>
-    <label>text_col: <input name="text_col" value="This is a long text" /></label>
-    <label>date_col: <input name="date_col" type="date" value="2025-06-05" /></label>
-    <label>time_col: <input name="time_col" type="time" value="12:34:56" /></label>
-    <label>timestamp_col: <input name="timestamp_col" value="2025-06-05 12:34:56" /></label>
-    <label>timestamptz_col: <input name="timestamptz_col" value="2025-06-05 12:34:56+00" /></label>
-    <label>boolean_col: <input name="boolean_col" type="checkbox" checked /></label>
-    <label>another_uuid: <input name="another_uuid" value="d1b355c0-f348-4bcf-b3df-ef95b3a8a3ad" /></label>
-    <label>json_col (as JSON): <textarea name="json_col">{ "key": "value" }</textarea></label>
-    <label>jsonb_col (as JSON): <textarea name="jsonb_col">{ "key": "value" }</textarea></label>
-    <label>int_array_col (comma-separated): <input name="int_array_col" value="1,2,3" /></label>
-    <label>text_array_col (comma-separated): <input name="text_array_col" value="apple,banana" /></label>
-    <label>status_col: <input name="status_col" value="active" /></label>
-    <label>file_col: <input name="file_col" value="\\x68656c6c6f" /></label>
-  </form>
+    <div class="main-content">
+      <div class="form-section">
+        <h2>Request Parameters</h2>
+        <form id="exampleForm">
+          <div class="form-grid">
+            <div class="field-group">
+              <label for="id">ID (UUID)</label>
+              <input id="id" name="id" value="b6d4c431-f327-4a4a-9345-320aa3cd7e31" />
+            </div>
+            
+            <div class="field-group">
+              <label for="small_int_col">Small Integer</label>
+              <input id="small_int_col" name="small_int_col" type="number" value="1" />
+            </div>
+            
+            <div class="field-group">
+              <label for="int_col">Integer</label>
+              <input id="int_col" name="int_col" type="number" value="42" />
+            </div>
+            
+            <div class="field-group">
+              <label for="big_int_col">Big Integer</label>
+              <input id="big_int_col" name="big_int_col" type="number" value="9000000000" />
+            </div>
+            
+            <div class="field-group">
+              <label for="decimal_col">Decimal</label>
+              <input id="decimal_col" name="decimal_col" type="number" step="any" value="12.34" />
+            </div>
+            
+            <div class="field-group">
+              <label for="numeric_col">Numeric</label>
+              <input id="numeric_col" name="numeric_col" type="number" step="any" value="56.789" />
+            </div>
+            
+            <div class="field-group">
+              <label for="real_col">Real</label>
+              <input id="real_col" name="real_col" type="number" step="any" value="1.23" />
+            </div>
+            
+            <div class="field-group">
+              <label for="double_col">Double</label>
+              <input id="double_col" name="double_col" type="number" step="any" value="9.87" />
+            </div>
+            
+            <div class="field-group">
+              <label for="char_col">Character</label>
+              <input id="char_col" name="char_col" value="char_data" />
+            </div>
+            
+            <div class="field-group">
+              <label for="varchar_col">Varchar</label>
+              <input id="varchar_col" name="varchar_col" value="varchar_data" />
+            </div>
+            
+            <div class="field-group">
+              <label for="text_col">Text</label>
+              <input id="text_col" name="text_col" value="This is a long text" />
+            </div>
+            
+            <div class="field-group">
+              <label for="date_col">Date</label>
+              <input id="date_col" name="date_col" type="date" value="2025-06-05" />
+            </div>
+            
+            <div class="field-group">
+              <label for="time_col">Time</label>
+              <input id="time_col" name="time_col" type="time" value="12:34:56" />
+            </div>
+            
+            <div class="field-group">
+              <label for="timestamp_col">Timestamp</label>
+              <input id="timestamp_col" name="timestamp_col" value="2025-06-05 12:34:56" />
+            </div>
+            
+            <div class="field-group">
+              <label for="timestamptz_col">Timestamp with Timezone</label>
+              <input id="timestamptz_col" name="timestamptz_col" value="2025-06-05 12:34:56+00" />
+            </div>
+            
+            <div class="field-group checkbox-field">
+              <input id="boolean_col" name="boolean_col" type="checkbox" checked />
+              <label for="boolean_col">Boolean</label>
+            </div>
+            
+            <div class="field-group">
+              <label for="another_uuid">Another UUID</label>
+              <input id="another_uuid" name="another_uuid" value="d1b355c0-f348-4bcf-b3df-ef95b3a8a3ad" />
+            </div>
+            
+            <div class="field-group">
+              <label for="int_array_col">Integer Array (comma-separated)</label>
+              <input id="int_array_col" name="int_array_col" value="1,2,3" />
+            </div>
+            
+            <div class="field-group">
+              <label for="text_array_col">Text Array (comma-separated)</label>
+              <input id="text_array_col" name="text_array_col" value="apple,banana" />
+            </div>
+            
+            <div class="field-group">
+              <label for="status_col">Status</label>
+              <input id="status_col" name="status_col" value="active" />
+            </div>
+            
+            <div class="field-group">
+              <label for="file_col">File (hex)</label>
+              <input id="file_col" name="file_col" value="\\x68656c6c6f" />
+            </div>
+          </div>
+          
+          <div class="form-grid">
+            <div class="field-group">
+              <label for="json_col">JSON Column</label>
+              <textarea id="json_col" name="json_col">{ "key": "value" }</textarea>
+            </div>
+            
+            <div class="field-group">
+              <label for="jsonb_col">JSONB Column</label>
+              <textarea id="jsonb_col" name="jsonb_col">{ "key": "value" }</textarea>
+            </div>
+          </div>
+        </form>
+      </div>
 
-  <button onclick="makeGetRequest()">GET /api/foo</button>
-  <button onclick="makePostRequest()">POST /api/foo</button>
-  <button onclick="makeDeleteRequest()">DELETE /api/foo</button>
-  <button onclick="makePutRequest()">PUT /api/foo</button>
+      <div class="controls-section">
+        <h2>API Actions</h2>
+        <div class="button-group">
+          <button class="api-button btn-get" onclick="makeGetRequest()">
+            GET /api/foo
+          </button>
+          <button class="api-button btn-post" onclick="makePostRequest()">
+            POST /api/foo
+          </button>
+          <button class="api-button btn-put" onclick="makePutRequest()">
+            PUT /api/foo
+          </button>
+          <button class="api-button btn-delete" onclick="makeDeleteRequest()">
+            DELETE /api/foo
+          </button>
+        </div>
+      </div>
 
-  <p id="response"></p>
+      <div class="response-section">
+        <h3>Response</h3>
+        <div id="response" class="response-content">Click any button above to make an API request...</div>
+      </div>
+    </div>
+  </div>
 
   <script>
     const baseUrl = 'http://localhost:6969/api/foo';
@@ -90,19 +457,33 @@
       return json;
     }
 
+    function setLoading(method) {
+      const responseEl = document.getElementById('response');
+      responseEl.innerHTML = `<span class="status-indicator status-pending"></span>Making ${method} request...\n<div class="loading"></div>`;
+    }
+
     function handleResponse(responsePromise, method) {
+      setLoading(method);
+      
       responsePromise
-        .then(response => response.json())
-        .then(data => {
-          document.getElementById('response').textContent = `${method} Response: ` + JSON.stringify(data, null, 2);
+        .then(async response => {
+          const data = await response.json();
+          const statusClass = response.ok ? 'status-success' : 'status-error';
+          const statusText = response.ok ? 'Success' : 'Error';
+          
+          document.getElementById('response').innerHTML = 
+            `<span class="status-indicator ${statusClass}"></span>${method} ${statusText} (${response.status})\n\n` +
+            JSON.stringify(data, null, 2);
         })
         .catch(error => {
-          document.getElementById('response').textContent = 'Error: ' + error;
+          document.getElementById('response').innerHTML = 
+            `<span class="status-indicator status-error"></span>Network Error\n\n${error.message}`;
         });
     }
 
     function makeGetRequest() {
-      handleResponse(fetch(baseUrl, { method: 'GET' }), 'GET');
+      const formData = getFormData();
+      handleResponse(fetch(baseUrl + '/' + formData.id, { method: 'GET' }), 'GET');
     }
 
     function makePostRequest() {

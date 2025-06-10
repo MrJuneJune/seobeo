@@ -18,6 +18,16 @@ void handleGetExampleTable(int client_fd, HttpRequestType* request)
   const char* content_type = "application/json";
   char response[BUFFER_SIZE];
 
+  char where_clause[1024];
+  for (size_t i = 0; i < request->path_params_len; i++) {
+    if (strcmp(request->path_params[i].key, "id") == 0) {
+      const char* id = request->path_params[i].value;
+      sprintf(where_clause, "id='%s'", id);
+      WriteToLogs("Requested ID = %s", id);
+      break;
+    }
+  }
+
   PGconn *pg_conn = BorrowConnection(connection_pool);
   ExampleTableQuery etq = QueryExampleTable(pg_conn, "*","id=\'b6d4c431-f327-4a4a-9345-320aa3cd7e31\'");
   if (etq.ExampleTable != NULL)
@@ -257,7 +267,7 @@ void handleDeleteFoo(int client_fd, HttpRequestType* request)
 Route ROUTE[] = {
   {
     HTTP_METHOD_GET,
-    "/api/foo",
+    "/api/foo/{id}",
     &handleGetExampleTable
   },
   {

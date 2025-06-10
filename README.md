@@ -10,19 +10,15 @@ Seobeo is a lightweight C server built for educational and personal projects. I 
 
 ## How to run 
 ```bash
-./example/start.sh
+make example
 ```
 
 ## TODO
 
 - Basic CSRF token for forms.
 
-- Create few API examples.
-
 - Write simple tests for basic cases 
 
 - Websockets
-
-- Example using postgres lib
 
 - Dockerize it?

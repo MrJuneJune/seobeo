@@ -8,12 +8,13 @@ void GenerateResponseHeader
   int status,
   const char* content_type,
   const int content_length
-) {
+) 
+{
   const char* status_text;
-  
 
   // TODO: Make this into compile time variables 
-  switch(status) {
+  switch(status)
+  {
     case HTTP_OK: status_text = "OK"; break;
     case HTTP_CREATED: status_text = "Created"; break;
     case HTTP_MOVED_PERMANENTLY: status_text = "Moved Permanently"; break;
@@ -58,13 +59,15 @@ void SendHTTPErrorResponse(int client_fd, int status_code)
 }
 
 // --- Server -- //
-int SetNonBlocking(int fd) {
+int SetNonBlocking(int fd)
+{
   int flags = fcntl(fd, F_GETFL, 0);
   if (flags == -1) return -1;
   return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
 
-void CreateSocket(int* server_fd) {
+void CreateSocket(int* server_fd)
+{
   *server_fd = socket(AF_INET, SOCK_STREAM, 0);
   if (*server_fd == -1) {
     perror("socket failed");
@@ -73,7 +76,8 @@ void CreateSocket(int* server_fd) {
   SetNonBlocking(*server_fd);
 }
 
-void BindToSocket(int* server_fd, struct sockaddr_in* server_addr) {
+void BindToSocket(int* server_fd, struct sockaddr_in* server_addr)
+{
   server_addr->sin_family = AF_INET;
   server_addr->sin_addr.s_addr = INADDR_ANY;
   server_addr->sin_port = htons(PORT);
@@ -89,8 +93,10 @@ void BindToSocket(int* server_fd, struct sockaddr_in* server_addr) {
   }
 }
 
-void ListenToSocket(int* server_fd) {
-  if (listen(*server_fd, SOMAXCONN) < 0) {
+void ListenToSocket(int* server_fd)
+{
+  if (listen(*server_fd, SOMAXCONN) < 0)
+  {
     perror("listen failed");
     close(*server_fd);
     exit(EXIT_FAILURE);
@@ -98,19 +104,15 @@ void ListenToSocket(int* server_fd) {
   WriteToLogs("🚀 HTTP Server listening on port %d...\n", PORT);
 }
 
-void ExtractPathFromReferer(const char* string_value, char* out_path) {
+void ExtractPathFromReferer(const char* string_value, char* out_path, char* out_query)
+{
   regex_t regex;
   regmatch_t matches[2];
-  int WHOLE_MATCH_INDEX = 0;
-  int PATH_INDEX = 1;
+  const char* pattern = "(/[^ ?\r\n]*)";
 
-  // TODO: move to consts file
-  // const char* pattern = "https?://[^/]+(/[^ \r\n]*)";
-  const char* pattern = "(/[^ \r\n]*)";
-
-  // Add loggers
   if (regcomp(&regex, pattern, REG_EXTENDED) != 0) {
     fprintf(stderr, "Failed to compile regex\n");
+    return;
   }
 
   if (regexec(&regex, string_value, 2, matches, 0) == 0) {
@@ -118,15 +120,29 @@ void ExtractPathFromReferer(const char* string_value, char* out_path) {
     int end = matches[1].rm_eo;
 
     strncpy(out_path, string_value + start, end - start);
-    WriteToLogs("[Info] Opened  %s\n", out_path);
+    out_path[end - start] = '\0';
+
+    const char* query_start = strchr(string_value + end, '?');
+    if (query_start && strlen(query_start + 1) < MAX_QUERY_LEN) {
+      strncpy(out_query, query_start + 1, MAX_QUERY_LEN - 1);
+      out_query[MAX_QUERY_LEN - 1] = '\0';
+    } else {
+      out_query[0] = '\0'; // No query
+    }
+
+    WriteToLogs("[Info] Opened path: %s, query: %s", out_path, out_query);
   } else {
-    WriteToLogs("[Error] Couldn't Open  %s\n", out_path);
+    WriteToLogs("[Error] Couldn't Open from: %s", string_value);
+    out_path[0] = '\0';
+    out_query[0] = '\0';
   }
 
   regfree(&regex);
 }
 
-void ParseHttpRequest(char* buffer, HttpRequestType* request) {
+
+void ParseHttpRequest(char *buffer, HttpRequestType *request)
+{
   void* http_loop[][2] = {
     {(void*)GET_HEADER, (void*)(intptr_t)HTTP_METHOD_GET},
     {(void*)POST_HEADER, (void*)(intptr_t)HTTP_METHOD_POST},
@@ -134,16 +150,19 @@ void ParseHttpRequest(char* buffer, HttpRequestType* request) {
     {(void*)DELETE_HEADER, (void*)(intptr_t)HTTP_METHOD_DELETE},
   };
 
-  for (int i=0; i<4; i++) {
-    if (strncmp(buffer, (char*)http_loop[i][0], strlen((char*)http_loop[i][0]))==0) {
+  for (int i=0; i<4; i++)
+  {
+    if (strncmp(buffer, (char*)http_loop[i][0], strlen((char*)http_loop[i][0]))==0)
+    {
       request->method = (int)(intptr_t)http_loop[i][1];
-      ExtractPathFromReferer(buffer + strlen((char*)http_loop[i][0]), request->path);
+      ExtractPathFromReferer(buffer + strlen((char*)http_loop[i][0]), request->path, request->query);
       break;
     }
   }
 
   char* content_length_ptr = strstr(buffer, CONTENT_LENGTH_HEADER);
-  if (content_length_ptr) {
+  if (content_length_ptr)
+  {
     request->content_length = atoi(content_length_ptr+strlen(CONTENT_LENGTH_HEADER)); 
   }
   char* content_type_ptr = strstr(buffer, CONTENT_TYPE_HEADER);
@@ -174,6 +193,7 @@ void ParseHttpRequest(char* buffer, HttpRequestType* request) {
   }
 }
 
+// TODO: Add more stuff since we only have basic values..
 int SanitizePaths(char* path) {
   if (strstr(path, "..") != NULL)
   {
@@ -183,176 +203,120 @@ int SanitizePaths(char* path) {
   return 0;
 }
 
-void HandleGetRequest(
-  int client_fd,
-  HttpRequestType* request
-) {
-  char response_header_buffer[BUFFER_SIZE];
-  char response_body_buffer[BUFFER_SIZE];
-  char file_path[BUFFER_SIZE];
+int MatchRoute(const char* pattern, const char* path, HttpRequestType* req)
+{
+  const char* pattern_ptr = pattern;
+  const char* path_ptr = path;
+  req->path_params_len = 0;
 
-  if (strcmp(request->path, "/") == 0)
+  while (*pattern_ptr && *path_ptr)
   {
-    snprintf(file_path, sizeof(file_path), "paths/index.html");
-  } 
-  else if (strstr(request->path, ".svg") || strstr(request->path, ".ico") || strstr(request->path, ".png"))
-  {
-    snprintf(file_path, sizeof(file_path), "assets%s", request->path);
-  }
-  else if (strstr(request->path, ".json"))
-  {
-    snprintf(file_path, sizeof(file_path), "api%s", request->path);
-  }
-  else if (strstr(request->path, "/api"))
-  {
-    DoPathHandle(
-      client_fd,
-      request,
-      GET_REQUEST_HANDLER,
-      GET_REQUEST_HANDLER_SIZE
-    );
-    return;
-  }
-  else
-  {
-    snprintf(file_path, sizeof(file_path), "paths%s.html", request->path);
-  }
-  
-  FILE *file = fopen(file_path, "r");
-  if (!file) {
-    WriteToLogs("[Error]⚠️ Could not open %s\n", file_path);
-    SendHTTPErrorResponse(client_fd, HTTP_NOT_FOUND);
-    close(client_fd);
-    return;
-  }
-  
-  // Determine content type based on file extension
-  const char* content_type = "text/html; charset=utf-8";
-  if (strstr(file_path, ".css"))
-    content_type = "text/css";
-  else if (strstr(file_path, ".js"))
-    content_type = "application/javascript";
-  else if (strstr(file_path, ".png"))
-    content_type = "image/png";
-  else if (strstr(file_path, ".jpg") || strstr(file_path, ".jpeg"))
-    content_type = "image/jpeg";
-  else if (strstr(file_path, ".svg"))
-    content_type = "image/svg+xml";
-  else if (strstr(file_path, ".ico"))
-    content_type = "image/x-icon";
+    if (*pattern_ptr == '{')
+    {
+      pattern_ptr++;
+      char param_name[MAX_KEY_LEN] = {0};
+      int i = 0;
+      while (*pattern_ptr && *pattern_ptr != '}' && i < MAX_KEY_LEN - 1)
+      {
+        param_name[i++] = *pattern_ptr++;
+      }
+      if (*pattern_ptr != '}') return 0;
+      pattern_ptr++;
 
-  // Get all the files first
-  fseek(file, 0, SEEK_END); 
-  size_t file_size = ftell(file);
-  rewind(file);
-  
-  GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, file_size);
-  send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
+      const char* next_slash = strchr(path_ptr, '/');
+      int len = next_slash ? (next_slash - path_ptr) : strlen(path_ptr);
+      if (len >= MAX_VALUE_LEN) return 0;
 
-  size_t bytes;
-  while ((bytes = fread(response_body_buffer, 1, BUFFER_SIZE, file)) > 0)
-  {
-    send(client_fd, response_body_buffer, bytes, 0);
-  }
-  
-  fclose(file);
-  close(client_fd);
-}
+      strncpy(req->path_params[req->path_params_len].key, param_name, MAX_KEY_LEN - 1);
+      strncpy(req->path_params[req->path_params_len].value, path_ptr, len);
+      req->path_params[req->path_params_len].key[MAX_KEY_LEN - 1] = '\0';
+      req->path_params[req->path_params_len].value[len] = '\0';
+      req->path_params_len++;
 
-void DoPathHandle(
-  int client_fd,
-  HttpRequestType* request,
-  PathToHandler* path_to_handler,
-  size_t handler_size
-) {
-
-  int response = 0;
-  for (int i = 0; i < handler_size; i++)
-  {
-    if (strcmp(path_to_handler[i].path, request->path)==0) {
-      path_to_handler[i].handler(client_fd, request);
-      WriteToLogs(
-        "Found a path"
-      );
-      response = 1;
-      break;
+      path_ptr += len;
+    } 
+    else
+    {
+      if (*pattern_ptr != *path_ptr) return 0;
+      pattern_ptr++;
+      path_ptr++;
     }
-  } 
-
-  if (response != 1) {
-    SendHTTPErrorResponse(client_fd, HTTP_BAD_REQUEST);
-    return;
   }
+  return *pattern_ptr == '\0' && *path_ptr == '\0';
 }
 
-void HandlePostRequest(
-  int client_fd,
-  HttpRequestType* request
-) {
-  WriteToLogs(
-    "POST request to %s with content-type %s and length %d\n",
-    request->path, request->content_type, request->content_length
-  );
-
-  if (!request->body) {
-    SendHTTPErrorResponse(client_fd, HTTP_BAD_REQUEST);
-    return;
+void HandleRoutes(int client_fd, HttpRequestType* request, Route* routes, size_t route_count)
+{
+  for (size_t i = 0; i < route_count; i++) {
+    if (routes[i].method != request->method) continue;
+    if (strcmp(routes[i].path_pattern, request->path) == 0 ||
+        MatchRoute(routes[i].path_pattern, request->path, request)) {
+      routes[i].handler(client_fd, request);
+      return;
+    }
   }
-
-  DoPathHandle(
-    client_fd,
-    request,
-    POST_REQUEST_HANDLER,
-    POST_REQUEST_HANDLER_SIZE
-  );
-
-  return;
-}
-
-void HandlePutRequest(
-  int client_fd,
-  HttpRequestType* request
-) {
-  WriteToLogs(
-    "PUT request to %s with content-type %s and length %d\n",
-    request->path, request->content_type, request->content_length
-  );
-
-  if (!request->body) {
-    SendHTTPErrorResponse(client_fd, HTTP_BAD_REQUEST);
-    return;
+  
+  if (request->method == HTTP_METHOD_GET)
+  {
+    char response_header_buffer[BUFFER_SIZE];
+    char response_body_buffer[BUFFER_SIZE];
+    char file_path[BUFFER_SIZE];
+    file_path[0] = '\0';  // Mark as empty
+  
+    // Determine fallback path
+    if (strcmp(request->path, "/") == 0) {
+      snprintf(file_path, sizeof(file_path), "paths/index.html");
+    } else if (strstr(request->path, ".svg") || strstr(request->path, ".ico") || strstr(request->path, ".png")) {
+      snprintf(file_path, sizeof(file_path), "assets%s", request->path);
+    } else if (strstr(request->path, ".json")) {
+      snprintf(file_path, sizeof(file_path), "api%s", request->path);
+    } else if (strstr(request->path, ".html")) {
+      snprintf(file_path, sizeof(file_path), "paths%s", request->path);  // add only if it's an explicit .html
+    }
+  
+    // Only continue if we actually built a fallback path
+    if (file_path[0] != '\0') {
+      FILE *file = fopen(file_path, "r");
+      if (!file) {
+        WriteToLogs("[Error]⚠️ Could not open %s\n", file_path);
+        SendHTTPErrorResponse(client_fd, HTTP_NOT_FOUND);
+        close(client_fd);
+        return;
+      }
+  
+      const char* content_type = "text/html; charset=utf-8";
+      if (strstr(file_path, ".css"))
+        content_type = "text/css";
+      else if (strstr(file_path, ".js"))
+        content_type = "application/javascript";
+      else if (strstr(file_path, ".png"))
+        content_type = "image/png";
+      else if (strstr(file_path, ".jpg") || strstr(file_path, ".jpeg"))
+        content_type = "image/jpeg";
+      else if (strstr(file_path, ".svg"))
+        content_type = "image/svg+xml";
+      else if (strstr(file_path, ".ico"))
+        content_type = "image/x-icon";
+  
+      fseek(file, 0, SEEK_END);
+      size_t file_size = ftell(file);
+      rewind(file);
+  
+      GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, file_size);
+      send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
+  
+      size_t bytes;
+      while ((bytes = fread(response_body_buffer, 1, BUFFER_SIZE, file)) > 0) {
+        send(client_fd, response_body_buffer, bytes, 0);
+      }
+      fclose(file);
+      close(client_fd);
+      return;
+    }
   }
-
-  DoPathHandle(
-    client_fd,
-    request,
-    PUT_REQUEST_HANDLER,
-    PUT_REQUEST_HANDLER_SIZE
-  );
-}
-
-void HandleDeleteRequest(
-  int client_fd,
-  HttpRequestType* request
-) {
-  WriteToLogs(
-    "DELETE request to %s with content-type %s and length %d\n",
-    request->path, request->content_type, request->content_length
-  );
-
-  if (!request->body) {
-    SendHTTPErrorResponse(client_fd, HTTP_BAD_REQUEST);
-    return;
-  }
-
-  DoPathHandle(
-    client_fd,
-    request,
-    DELETE_REQUEST_HANDLER,
-    DELETE_REQUEST_HANDLER_SIZE
-  );
-
-  return;
+  
+  // Nothing matched at all
+  SendHTTPErrorResponse(client_fd, HTTP_NOT_FOUND);
 }
 
 void HandleRequest(int client_fd) { 
@@ -376,8 +340,9 @@ void HandleRequest(int client_fd) {
     }
     total_bytes += bytes_read;
 
-    // Optional: prevent overflow
-    if (total_bytes >= BUFFER_SIZE - 1) {
+    // Prevent overflow
+    if (total_bytes >= BUFFER_SIZE - 1)
+    {
       break;
     }
   }
@@ -393,27 +358,8 @@ void HandleRequest(int client_fd) {
     return;
   }
 
-  switch(request.method) {
-    case HTTP_METHOD_GET:
-      WriteToLogs("GET REQUEST");
-      HandleGetRequest(client_fd, &request);
-      break;
-    case HTTP_METHOD_POST:
-      WriteToLogs("POST REQUEST");
-      HandlePostRequest(client_fd, &request);
-      break;
-    case HTTP_METHOD_PUT:
-      WriteToLogs("PUT REQUEST");
-      HandlePutRequest(client_fd, &request);
-      break;
-    case HTTP_METHOD_DELETE:
-      WriteToLogs("DELETE REQUEST");
-      HandleDeleteRequest(client_fd, &request);
-      break;
-    default:
-      WriteToLogs("[Error]: It is not GET, POST, PUT, or DELETE");
-      break;
-  }
+  WriteRequestLog(request);
+  HandleRoutes(client_fd, &request, ROUTE, ROUTE_SIZE);
 
   // Free requests and it is no longer needed.
   free(request.body);
@@ -421,18 +367,32 @@ void HandleRequest(int client_fd) {
 
 void WriteRequestLog(HttpRequestType request) {
   WriteToLogs(
-    "Request: \n"
-    "method: %d,\n"
-    "path: %s,\n"
-    "body: %s,\n"
-    "content_legnth: %s,\n"
-    "content_type: %s\n", 
+    "[INFO] HTTP Request:\n"
+    "  Method        : %d\n"
+    "  Path          : %s\n"
+    "  Content-Type  : %s\n"
+    "  Content-Length: %d\n"
+    "  Body          : %s\n"
+    "  Query         : %s\n"
+    "  Path Params   :",
     request.method,
-    request.path,
-    request.body,
+    request.path[0] ? request.path : "/",
+    request.content_type[0] ? request.content_type : "N/A",
     request.content_length,
-    request.content_type
+    (strstr(request.path, "api") == 0) ? request.body : "N/A",
+    request.query[0] ? request.query : "N/A"
   );
+
+  if (request.path_params_len == 0) {
+    WriteToLogs("    (none)");
+  } else {
+    for (size_t i = 0; i < request.path_params_len; ++i) {
+      WriteToLogs("    - %s: %s",
+        request.path_params[i].key,
+        request.path_params[i].value
+      );
+    }
+  }
 }
 
 

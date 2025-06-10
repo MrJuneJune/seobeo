@@ -254,40 +254,29 @@ void handleDeleteFoo(int client_fd, HttpRequestType* request)
   send(client_fd,  response, strlen(response), 0);
 }
 
-PathToHandler GET_REQUEST_HANDLER[] = {
+Route ROUTE[] = {
   {
+    HTTP_METHOD_GET,
     "/api/foo",
     &handleGetExampleTable
-  }
-};
-size_t GET_REQUEST_HANDLER_SIZE =  1;
-
-
-PathToHandler POST_REQUEST_HANDLER[] = {
+  },
   {
+    HTTP_METHOD_POST,
     "/api/foo",
     &handlePostFoo
-  }
-};
-size_t POST_REQUEST_HANDLER_SIZE =  1;
-
-
-PathToHandler DELETE_REQUEST_HANDLER[] = {
+  },
   {
+    HTTP_METHOD_DELETE,
     "/api/foo",
     &handleDeleteFoo
-  }
-};
-
-size_t DELETE_REQUEST_HANDLER_SIZE =  1;
-
-PathToHandler PUT_REQUEST_HANDLER[] = {
+  },
   {
+    HTTP_METHOD_PUT,
     "/api/foo",
     &handlePutFoo
   }
 };
-size_t PUT_REQUEST_HANDLER_SIZE =  1;
+size_t ROUTE_SIZE = 4;
 
 // --- main server loop ---
 int main() {

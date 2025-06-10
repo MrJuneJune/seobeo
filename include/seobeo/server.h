@@ -26,6 +26,15 @@
 #define BUFFER_SIZE 8192 // ngnix default I believe
 #define LOGGER_BUFFER 8192
 #define MAX_EVENTS 64
+#define MAX_QUERY_LEN 1024
+#define MAX_PATH_LEN 1024
+#define MAX_CONTENT_TYPE_LEN 128
+
+#define MAX_PATH_PARAMS 4
+#define MAX_KEY_LEN 64
+#define MAX_VALUE_LEN 256
+
+
 
 #define HTTP_OK 200
 #define HTTP_CREATED 201
@@ -55,31 +64,33 @@
 extern volatile sig_atomic_t stop_server;
 
 typedef struct {
+  char key[MAX_KEY_LEN];
+  char value[MAX_VALUE_LEN];
+} PathParam;
+
+typedef struct {
   int method;
-  char path[1024];
+  char path[MAX_PATH_LEN];
   char* body;
   int content_length; 
-  char content_type[128];
+  char content_type[MAX_CONTENT_TYPE_LEN];
+  char query[MAX_QUERY_LEN];
+
+  PathParam path_params[MAX_PATH_PARAMS];
+  size_t path_params_len;
 } HttpRequestType;
 
 typedef void RequestHandler(int client_fd, HttpRequestType* request);
 
 typedef struct {
-  const char* path;
-  RequestHandler* handler;
-} PathToHandler;
+  int method; 
+  const char *path_pattern;
+  RequestHandler *handler;
+} Route;
 
 // Create a separate router header and src file to handle these.
-extern PathToHandler GET_REQUEST_HANDLER[];
-extern size_t GET_REQUEST_HANDLER_SIZE;
-extern PathToHandler POST_REQUEST_HANDLER[];
-extern size_t POST_REQUEST_HANDLER_SIZE;
-extern PathToHandler DELETE_REQUEST_HANDLER[];
-extern size_t POST_REQUEST_HANDLER_SIZE;
-extern PathToHandler DELETE_REQUEST_HANDLER[];
-extern size_t DELETE_REQUEST_HANDLER_SIZE;
-extern PathToHandler PUT_REQUEST_HANDLER[];
-extern size_t PUT_REQUEST_HANDLER_SIZE;
+extern Route ROUTE[];
+extern size_t ROUTE_SIZE;
 
 // Server Related
 int SetNonBlocking(int fd);
@@ -89,13 +100,9 @@ void ListenToSocket(int* server_fd);
 
 // Request Related
 void ParseHttpRequest(char* buffer, HttpRequestType* request);
-void ExtractPathFromReferer(const char* string_value, char* out_path); 
+void ExtractPathFromReferer(const char* string_value, char* out_path, char* out_query); 
 int  SanitizePaths(char* path);
-void DoPathHandle(int client_fd, HttpRequestType* request, PathToHandler* path_to_handler, size_t handler_size);
-void HandleGetRequest(int client_fd, HttpRequestType* request);
-void HandlePostRequest(int client_fd, HttpRequestType* request);
-void HandlePutRequest(int client_fd, HttpRequestType* request);
-void HandleDeleteRequest(int client_fd, HttpRequestType* request);
+void HandleRoutes(int client_fd, HttpRequestType* request, Route *routes, size_t route_count);
 void HandleRequest(int client_fd);
 
 // Response Related

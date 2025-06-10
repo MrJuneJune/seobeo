@@ -1,5 +1,6 @@
 #include <seobeo/helper.h>
 #include <seobeo/server.h>
+#include <sys/time.h>
 
 // Global epoll file descriptor - needed for proper cleanup
 static int global_epfd = -1;
@@ -85,9 +86,17 @@ void BindToSocket(int* server_fd, struct sockaddr_in* server_addr)
   server_addr->sin_addr.s_addr = INADDR_ANY;
   server_addr->sin_port = htons(PORT);
 
-  // Re-use tcp address?
+  // Performance optimizations
   int opt = 1;
   setsockopt(*server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+  
+  // Disable Nagle's algorithm for faster response times
+  setsockopt(*server_fd, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
+  
+  // Set larger socket buffers for better performance
+  int buf_size = 65536;
+  setsockopt(*server_fd, SOL_SOCKET, SO_RCVBUF, &buf_size, sizeof(buf_size));
+  setsockopt(*server_fd, SOL_SOCKET, SO_SNDBUF, &buf_size, sizeof(buf_size));
 
   if (bind(*server_fd, (struct sockaddr *)server_addr, sizeof(*server_addr)) < 0) {
     perror("bind failed");
@@ -274,10 +283,125 @@ int MatchRoute(const char* pattern, const char* path, HttpRequestType* req)
 
 void CleanupClient(int client_fd)
 {
+  // Enable TCP_NODELAY for faster response (disable Nagle's algorithm)
+  int opt = 1;
+  setsockopt(client_fd, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
+  
   if (global_epfd != -1) {
     epoll_ctl(global_epfd, EPOLL_CTL_DEL, client_fd, NULL);
   }
   close(client_fd);
+}
+
+int send_all(int sockfd, const void *buf, size_t len) {
+  const char *p = buf;
+  size_t total_sent = 0;
+  int retry_count = 0;
+  const int max_retries = 3;
+
+  while (total_sent < len) {
+    ssize_t sent = send(sockfd, p + total_sent, len - total_sent, MSG_NOSIGNAL);
+    
+    if (sent < 0) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        // Socket buffer is full, wait a bit and retry
+        if (retry_count < max_retries) {
+          usleep(1000); // Wait 1ms
+          retry_count++;
+          continue;
+        }
+      }
+      WriteToLogs("[Error] send() failed: %s\n", strerror(errno));
+      return 0;
+    } else if (sent == 0) {
+      WriteToLogs("[Error] send() returned 0, client disconnected\n");
+      return 0;
+    }
+    
+    total_sent += sent;
+    retry_count = 0; // Reset retry count on successful send
+  }
+  return 1;
+}
+
+void ServeStaticFileFallback(int client_fd, HttpRequestType* request)
+{
+  char file_path[BUFFER_SIZE] = {0};
+
+  // Determine fallback path
+  if (strcmp(request->path, "/") == 0) {
+    snprintf(file_path, sizeof(file_path), "paths/index.html");
+  } else if (strstr(request->path, ".svg") || strstr(request->path, ".ico") || strstr(request->path, ".png")) {
+    snprintf(file_path, sizeof(file_path), "assets%s", request->path);
+  } else if (strstr(request->path, ".json")) {
+    snprintf(file_path, sizeof(file_path), "api%s", request->path);
+  } else if (strstr(request->path, ".html")) {
+    snprintf(file_path, sizeof(file_path), "paths%s", request->path);
+  } else {
+    return; // No match, don't serve anything
+  }
+
+  // Check file existence and get size
+  struct stat st;
+  if (stat(file_path, &st) != 0) {
+    WriteToLogs("[Error]⚠️ Could not stat %s\n", file_path);
+    SendHTTPErrorResponse(client_fd, HTTP_NOT_FOUND);
+    return;
+  }
+  size_t file_size = st.st_size;
+
+  // Open file in binary mode
+  FILE *file = fopen(file_path, "rb");
+  if (!file) {
+    WriteToLogs("[Error]⚠️ Could not open %s\n", file_path);
+    SendHTTPErrorResponse(client_fd, HTTP_NOT_FOUND);
+    return;
+  }
+
+  // Determine content type
+  const char *content_type = "application/octet-stream"; // Default binary
+  if (strstr(file_path, ".html")) content_type = "text/html; charset=utf-8";
+  else if (strstr(file_path, ".css")) content_type = "text/css";
+  else if (strstr(file_path, ".js")) content_type = "application/javascript";
+  else if (strstr(file_path, ".png")) content_type = "image/png";
+  else if (strstr(file_path, ".jpg") || strstr(file_path, ".jpeg")) content_type = "image/jpeg";
+  else if (strstr(file_path, ".gif")) content_type = "image/gif";
+  else if (strstr(file_path, ".svg")) content_type = "image/svg+xml";
+  else if (strstr(file_path, ".ico")) content_type = "image/x-icon";
+  else if (strstr(file_path, ".json")) content_type = "application/json";
+
+  // Send headers
+  char response_header_buffer[BUFFER_SIZE];
+  GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, file_size);
+  
+  if (!send_all(client_fd, response_header_buffer, strlen(response_header_buffer))) {
+    WriteToLogs("[Error]⚠️ Failed to send headers\n");
+    fclose(file);
+    return;
+  }
+
+  // Send file content in chunks
+  char response_body_buffer[STATIC_FILE_BUFFER];
+  size_t bytes_read;
+  size_t total_bytes_sent = 0;
+
+  while ((bytes_read = fread(response_body_buffer, 1, STATIC_FILE_BUFFER, file)) > 0) {
+    if (!send_all(client_fd, response_body_buffer, bytes_read)) {
+      WriteToLogs("[Error]⚠️ Failed to send file data at byte %zu\n", total_bytes_sent);
+      fclose(file);
+      return;
+    }
+    total_bytes_sent += bytes_read;
+  }
+
+  // Verify we sent the expected amount
+  if (total_bytes_sent != file_size) {
+    WriteToLogs("[Warning]⚠️ Expected to send %zu bytes, actually sent %zu bytes\n", 
+                file_size, total_bytes_sent);
+  }
+
+  fclose(file);
+  WriteToLogs("[Info] Successfully served %s (%zu bytes)\n", file_path, total_bytes_sent);
 }
 
 void HandleRoutes(int client_fd, HttpRequestType* request, Route* routes, size_t route_count)
@@ -291,72 +415,22 @@ void HandleRoutes(int client_fd, HttpRequestType* request, Route* routes, size_t
       return;
     }
   }
-  
-  if (request->method == HTTP_METHOD_GET)
-  {
-    char response_header_buffer[BUFFER_SIZE];
-    char response_body_buffer[BUFFER_SIZE];
-    char file_path[BUFFER_SIZE];
-    file_path[0] = '\0';  // Mark as empty
-  
-    // Determine fallback path
-    if (strcmp(request->path, "/") == 0) {
-      snprintf(file_path, sizeof(file_path), "paths/index.html");
-    } else if (strstr(request->path, ".svg") || strstr(request->path, ".ico") || strstr(request->path, ".png")) {
-      snprintf(file_path, sizeof(file_path), "assets%s", request->path);
-    } else if (strstr(request->path, ".json")) {
-      snprintf(file_path, sizeof(file_path), "api%s", request->path);
-    } else if (strstr(request->path, ".html")) {
-      snprintf(file_path, sizeof(file_path), "paths%s", request->path);  // add only if it's an explicit .html
-    }
-  
-    // Only continue if we actually built a fallback path
-    if (file_path[0] != '\0') {
-      FILE *file = fopen(file_path, "r");
-      if (!file) {
-        WriteToLogs("[Error]⚠️ Could not open %s\n", file_path);
-        SendHTTPErrorResponse(client_fd, HTTP_NOT_FOUND);
-        CleanupClient(client_fd);
-        return;
-      }
-  
-      const char* content_type = "text/html; charset=utf-8";
-      if (strstr(file_path, ".css"))
-        content_type = "text/css";
-      else if (strstr(file_path, ".js"))
-        content_type = "application/javascript";
-      else if (strstr(file_path, ".png"))
-        content_type = "image/png";
-      else if (strstr(file_path, ".jpg") || strstr(file_path, ".jpeg"))
-        content_type = "image/jpeg";
-      else if (strstr(file_path, ".svg"))
-        content_type = "image/svg+xml";
-      else if (strstr(file_path, ".ico"))
-        content_type = "image/x-icon";
-  
-      fseek(file, 0, SEEK_END);
-      size_t file_size = ftell(file);
-      rewind(file);
-  
-      GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, file_size);
-      send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
-  
-      size_t bytes;
-      while ((bytes = fread(response_body_buffer, 1, BUFFER_SIZE, file)) > 0) {
-        send(client_fd, response_body_buffer, bytes, 0);
-      }
-      fclose(file);
-      CleanupClient(client_fd);
-      return;
-    }
+
+  if (request->method == HTTP_METHOD_GET) {
+    ServeStaticFileFallback(client_fd, request);
+    CleanupClient(client_fd);
+    return;
   }
-  
-  // Nothing matched at all
+
   SendHTTPErrorResponse(client_fd, HTTP_NOT_FOUND);
   CleanupClient(client_fd);
 }
 
 void HandleRequest(int client_fd) { 
+  // Add timing to debug performance
+  struct timeval start, end;
+  gettimeofday(&start, NULL);
+  
   char header_buffer[BUFFER_SIZE];
   ssize_t total_bytes = 0;
 
@@ -408,6 +482,11 @@ cleanup:
   if (request.body) {
     free(request.body);
   }
+  
+  // Log timing
+  gettimeofday(&end, NULL);
+  long diff = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) / 1000;
+  WriteToLogs("[TIMING] Request took %ld ms", diff);
 }
 
 void WriteRequestLog(HttpRequestType request) {
@@ -521,6 +600,10 @@ void RunEpollLoop(const int server_fd) {
             close(client_fd);
             continue;
           }
+          
+          // Set TCP_NODELAY for new client connections
+          int opt = 1;
+          setsockopt(client_fd, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
   
           // Register this client socket with epoll.
           // using EPOLLET so that it notifies when the fd is ready?

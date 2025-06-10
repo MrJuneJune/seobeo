@@ -1,6 +1,9 @@
 #include <seobeo/helper.h>
 #include <seobeo/server.h>
 
+// Global epoll file descriptor - needed for proper cleanup
+static int global_epfd = -1;
+
 // --- Response -- //
 void GenerateResponseHeader
 (
@@ -140,9 +143,11 @@ void ExtractPathFromReferer(const char* string_value, char* out_path, char* out_
   regfree(&regex);
 }
 
-
 void ParseHttpRequest(char *buffer, HttpRequestType *request)
 {
+  // Initialize request structure
+  memset(request, 0, sizeof(HttpRequestType));
+  
   void* http_loop[][2] = {
     {(void*)GET_HEADER, (void*)(intptr_t)HTTP_METHOD_GET},
     {(void*)POST_HEADER, (void*)(intptr_t)HTTP_METHOD_POST},
@@ -164,7 +169,12 @@ void ParseHttpRequest(char *buffer, HttpRequestType *request)
   if (content_length_ptr)
   {
     request->content_length = atoi(content_length_ptr+strlen(CONTENT_LENGTH_HEADER)); 
+    // Sanitize content length - prevent huge allocations
+    if (request->content_length > BUFFER_SIZE * 10) {
+      request->content_length = 0;
+    }
   }
+  
   char* content_type_ptr = strstr(buffer, CONTENT_TYPE_HEADER);
   if (content_type_ptr)
   {
@@ -172,29 +182,46 @@ void ParseHttpRequest(char *buffer, HttpRequestType *request)
     if (end)
     {
       int len = end - (content_type_ptr + strlen(CONTENT_TYPE_HEADER));
-      if (len < sizeof(request->content_type))
+      if (len < sizeof(request->content_type) && len > 0)
       {
         strncpy(request->content_type, content_type_ptr + strlen(CONTENT_TYPE_HEADER), len);
+        request->content_type[len] = '\0';
       }
     }
   }
 
-  request->body = malloc(request->content_length+4);
+  // Only allocate body if we have valid content length
   if (
     (request->method == HTTP_METHOD_POST || request->method == HTTP_METHOD_PUT) && 
     request->content_length > 0
   ) {
-   char* body_start = strstr(buffer, "\r\n\r\n");
-   if (body_start) {
-     body_start += 4;  // Skip past the CRLFCRLF to the actual body
-     memcpy(request->body, body_start, request->content_length);
-     request->body[request->content_length] = '\0';
-   }
+    request->body = malloc(request->content_length + 4);
+    if (!request->body) {
+      WriteToLogs("[Error] Failed to allocate memory for request body");
+      request->content_length = 0;
+      return;
+    }
+    
+    char* body_start = strstr(buffer, "\r\n\r\n");
+    if (body_start) {
+      body_start += 4;  // Skip past the CRLFCRLF to the actual body
+      memcpy(request->body, body_start, request->content_length);
+      request->body[request->content_length] = '\0';
+    } else {
+      // No body found, free the allocated memory
+      free(request->body);
+      request->body = NULL;
+      request->content_length = 0;
+    }
+  } else {
+    request->body = NULL;
   }
 }
 
 // TODO: Add more stuff since we only have basic values..
 int SanitizePaths(char* path) {
+  if (!path) return -1;
+  
   if (strstr(path, "..") != NULL)
   {
     return -1;
@@ -245,6 +272,14 @@ int MatchRoute(const char* pattern, const char* path, HttpRequestType* req)
   return *pattern_ptr == '\0' && *path_ptr == '\0';
 }
 
+void CleanupClient(int client_fd)
+{
+  if (global_epfd != -1) {
+    epoll_ctl(global_epfd, EPOLL_CTL_DEL, client_fd, NULL);
+  }
+  close(client_fd);
+}
+
 void HandleRoutes(int client_fd, HttpRequestType* request, Route* routes, size_t route_count)
 {
   for (size_t i = 0; i < route_count; i++) {
@@ -252,6 +287,7 @@ void HandleRoutes(int client_fd, HttpRequestType* request, Route* routes, size_t
     if (strcmp(routes[i].path_pattern, request->path) == 0 ||
         MatchRoute(routes[i].path_pattern, request->path, request)) {
       routes[i].handler(client_fd, request);
+      CleanupClient(client_fd);
       return;
     }
   }
@@ -280,7 +316,7 @@ void HandleRoutes(int client_fd, HttpRequestType* request, Route* routes, size_t
       if (!file) {
         WriteToLogs("[Error]⚠️ Could not open %s\n", file_path);
         SendHTTPErrorResponse(client_fd, HTTP_NOT_FOUND);
-        close(client_fd);
+        CleanupClient(client_fd);
         return;
       }
   
@@ -310,13 +346,14 @@ void HandleRoutes(int client_fd, HttpRequestType* request, Route* routes, size_t
         send(client_fd, response_body_buffer, bytes, 0);
       }
       fclose(file);
-      close(client_fd);
+      CleanupClient(client_fd);
       return;
     }
   }
   
   // Nothing matched at all
   SendHTTPErrorResponse(client_fd, HTTP_NOT_FOUND);
+  CleanupClient(client_fd);
 }
 
 void HandleRequest(int client_fd) { 
@@ -324,28 +361,33 @@ void HandleRequest(int client_fd) {
   ssize_t total_bytes = 0;
 
   while (1) {
-    ssize_t bytes_read = read(client_fd, header_buffer + total_bytes, BUFFER_SIZE - 1 - total_bytes);
+    // Check if we're about to overflow before reading
+    if (total_bytes >= BUFFER_SIZE - 1) {
+      WriteToLogs("[Warning] Request too large, truncating");
+      break;
+    }
+    
+    ssize_t max_read = BUFFER_SIZE - 1 - total_bytes;
+    ssize_t bytes_read = read(client_fd, header_buffer + total_bytes, max_read);
+    
     if (bytes_read == -1) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         // No more data to read
         break;
       }
       perror("read");
-      close(client_fd);
+      CleanupClient(client_fd);
       return;
     } else if (bytes_read == 0) {
       // Client closed connection
-      close(client_fd);
+      CleanupClient(client_fd);
       return;
     }
     total_bytes += bytes_read;
-
-    // Prevent overflow
-    if (total_bytes >= BUFFER_SIZE - 1)
-    {
-      break;
-    }
   }
+
+  // Null terminate the buffer
+  header_buffer[total_bytes] = '\0';
 
   HttpRequestType request = {0};
   ParseHttpRequest(header_buffer, &request);
@@ -354,15 +396,18 @@ void HandleRequest(int client_fd) {
   if (SanitizePaths(request.path) != 0)
   {
     SendHTTPErrorResponse(client_fd, HTTP_FORBIDDEN);
-    close(client_fd);
-    return;
+    CleanupClient(client_fd);
+    goto cleanup;
   }
 
   WriteRequestLog(request);
   HandleRoutes(client_fd, &request, ROUTE, ROUTE_SIZE);
 
-  // Free requests and it is no longer needed.
-  free(request.body);
+cleanup:
+  // Free request body if allocated
+  if (request.body) {
+    free(request.body);
+  }
 }
 
 void WriteRequestLog(HttpRequestType request) {
@@ -379,7 +424,7 @@ void WriteRequestLog(HttpRequestType request) {
     request.path[0] ? request.path : "/",
     request.content_type[0] ? request.content_type : "N/A",
     request.content_length,
-    (strstr(request.path, "api") == 0) ? request.body : "N/A",
+    (strstr(request.path, "api") == 0) ? (request.body ? request.body : "N/A") : "N/A",
     request.query[0] ? request.query : "N/A"
   );
 
@@ -395,7 +440,6 @@ void WriteRequestLog(HttpRequestType request) {
   }
 }
 
-
 // TODO: Add types
 void WriteToLogs(const char *restrict format, ...) {
   char logger_buffer[LOGGER_BUFFER] = {0};
@@ -404,6 +448,7 @@ void WriteToLogs(const char *restrict format, ...) {
 
   va_start(args, format);
   vsnprintf(logger_buffer, LOGGER_BUFFER, format, args);
+  va_end(args);
 
   struct stat file_stat = {0};
   if (stat("logs", &file_stat) == -1) {
@@ -414,12 +459,12 @@ void WriteToLogs(const char *restrict format, ...) {
   }
 
   FILE* file = fopen("logs/logers.txt", "a");
-  GetTimeStamp(timestamp, sizeof(timestamp));
-
-  printf("[%s] %s \n", timestamp, logger_buffer);
-  fprintf(file, "[%s] %s \n", timestamp, logger_buffer);
-
-  fclose(file);
+  if (file) {
+    GetTimeStamp(timestamp, sizeof(timestamp));
+    printf("[%s] %s \n", timestamp, logger_buffer);
+    fprintf(file, "[%s] %s \n", timestamp, logger_buffer);
+    fclose(file);
+  }
 }
 
 void RunEpollLoop(const int server_fd) {
@@ -430,14 +475,31 @@ void RunEpollLoop(const int server_fd) {
     .data.fd = server_fd
   };
   int epfd = epoll_create1(0);
+  if (epfd == -1) {
+    perror("epoll_create1");
+    return;
+  }
+  
+  // Set global epfd for cleanup
+  global_epfd = epfd;
 
-  epoll_ctl(epfd, EPOLL_CTL_ADD, server_fd, &ev);
+  if (epoll_ctl(epfd, EPOLL_CTL_ADD, server_fd, &ev) == -1) {
+    perror("epoll_ctl: server_fd");
+    close(epfd);
+    return;
+  }
   
   while (!stop_server) {
     // Find open events and overwrite to events 
-    int n = epoll_wait(epfd, events_buffer, MAX_EVENTS, -1);
+    int n = epoll_wait(epfd, events_buffer, MAX_EVENTS, 1000); // 1 second timeout
+    
+    if (n == -1) {
+      if (errno == EINTR) continue; // Interrupted by signal
+      perror("epoll_wait");
+      break;
+    }
   
-    // Look through all events  that are waiting
+    // Look through all events that are waiting
     for (int i = 0; i < n; i++) {
       int fd = events_buffer[i].data.fd;
   
@@ -447,26 +509,40 @@ void RunEpollLoop(const int server_fd) {
           // Create a new client socket where client can bind to socket_fd
           int client_fd = accept(server_fd, NULL, NULL);
           // No more connections to accept to given server
-          // TODO: Maybe increase it on my own?
-          if (client_fd == -1) break;    
+          if (client_fd == -1) {
+            if (errno != EAGAIN && errno != EWOULDBLOCK) {
+              perror("accept");
+            }
+            break;
+          }
 
-          SetNonBlocking(client_fd);
+          if (SetNonBlocking(client_fd) == -1) {
+            perror("SetNonBlocking");
+            close(client_fd);
+            continue;
+          }
   
           // Register this client socket with epoll.
           // using EPOLLET so that it notifies when the fd is ready?
-          // not really sure about this one, but apprantly more performant
-           struct epoll_event client_ev = {
+          // not really sure about this one, but apparently more performant
+          struct epoll_event client_ev = {
             .events = EPOLLIN | EPOLLET,  
             .data.fd = client_fd
           };
-          epoll_ctl(epfd, EPOLL_CTL_ADD, client_fd, &client_ev);
+          if (epoll_ctl(epfd, EPOLL_CTL_ADD, client_fd, &client_ev) == -1) {
+            perror("epoll_ctl: client_fd");
+            close(client_fd);
+            continue;
+          }
         }
       } else {
-        // If it is client, then handle the request. 
+        // If it is client, then handle the request.
+        // Note: CleanupClient will remove from epoll and close the fd
         HandleRequest(fd);
       }
     }
   }
 
   close(epfd);
+  global_epfd = -1;
 }

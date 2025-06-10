@@ -25,7 +25,7 @@
 #define PORT 6969  // good number
 #define BUFFER_SIZE 8192 // ngnix default I believe
 #define LOGGER_BUFFER 8192
-#define MAX_EVENTS 64
+#define MAX_EVENTS 100
 #define MAX_QUERY_LEN 1024
 #define MAX_PATH_LEN 1024
 #define MAX_CONTENT_TYPE_LEN 128

@@ -1,4 +1,4 @@
-char *CRUD_HEADER_TEMPLATE =
+char* CRUD_HEADER_TEMPLATE =
 "#ifndef MODEL_{{TABLE_NAME}}\n"
 "#define MODEL_{{TABLE_NAME}}\n"
 "\n"
@@ -19,7 +19,8 @@ char *CRUD_HEADER_TEMPLATE =
 "{{TABLE_NAME}}Query Insert{{TABLE_NAME}}(PGconn *conn, {{TABLE_NAME}} u);\n"
 "{{TABLE_NAME}}Query Update{{TABLE_NAME}}(PGconn *conn, {{TABLE_NAME}} u, const char *where_clause);\n"
 "{{TABLE_NAME}}Query Delete{{TABLE_NAME}}(PGconn *conn, const char *where_clause);\n"
-"char *Serialize{{TABLE_NAME}}({{TABLE_NAME}} u);\n"
+"char* Serialize{{TABLE_NAME}}({{TABLE_NAME}} u);\n"
+"void Free{{TABLE_NAME}}Query({{TABLE_NAME}}Query *query_result);\n"
 "\n"
 "#endif // MODEL_{{TABLE_NAME}}\n"
 ;

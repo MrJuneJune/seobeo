@@ -42,7 +42,10 @@ void handleGetExampleTable(int client_fd, HttpRequestType *request)
     char *tmp = "{\"status\": \"failed\"}\0";
     strcpy(response, tmp);
   }
+
+  // clean up
   ReleaseConnection(connection_pool, pg_conn) ;
+  FreeExampleTableQuery(&etq);
 
   GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, strlen(response));
   send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
@@ -138,7 +141,8 @@ void handlePostFoo(int client_fd, HttpRequestType *request)
   }
 
   PGconn *pg_conn = BorrowConnection(connection_pool);
-  if (InsertExampleTable(pg_conn, example).status == PGRES_FATAL_ERROR)
+  ExampleTableQuery etq = InsertExampleTable(pg_conn, example);
+  if (etq.status == PGRES_FATAL_ERROR)
   {
     response = "{\"insert\": \"failed\"}";
   }
@@ -147,6 +151,7 @@ void handlePostFoo(int client_fd, HttpRequestType *request)
     response = "{\"insert\": \"successful\"}";
   }
   ReleaseConnection(connection_pool, pg_conn);
+  FreeExampleTableQuery(&etq);
 
   json_decref(root); // Free memory
 
@@ -239,7 +244,8 @@ void handlePutFoo(int client_fd, HttpRequestType *request)
   PGconn *pg_conn = BorrowConnection(connection_pool);
 
   const char *where_clause = "id = 'b6d4c431-f327-4a4a-9345-320aa3cd7e31'";
-  if (UpdateExampleTable(pg_conn, example, where_clause).status == PGRES_FATAL_ERROR)
+  ExampleTableQuery etq = UpdateExampleTable(pg_conn, example, where_clause);
+  if (etq.status == PGRES_FATAL_ERROR)
   {
     response = "{\"update\": \"failed\"}";
   }
@@ -249,6 +255,7 @@ void handlePutFoo(int client_fd, HttpRequestType *request)
   }
 
   ReleaseConnection(connection_pool, pg_conn);
+  FreeExampleTableQuery(&etq);
   json_decref(root);
 
   GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, strlen(response));
@@ -276,7 +283,8 @@ void handleDeleteFoo(int client_fd, HttpRequestType *request)
   PGconn *pg_conn = BorrowConnection(connection_pool);
   char where_clause[1024];
   snprintf(where_clause, strlen(where_clause), "id = \'%s\'", json_string_value(json_object_get(root, "id")));
-  if (DeleteExampleTable(pg_conn, where_clause).status==PGRES_FATAL_ERROR)
+  ExampleTableQuery etq = DeleteExampleTable(pg_conn, where_clause);
+  if (etq.status==PGRES_FATAL_ERROR)
   {
     response = "{\"status\": \"failed\"}";
   }
@@ -286,6 +294,7 @@ void handleDeleteFoo(int client_fd, HttpRequestType *request)
   }
 
   ReleaseConnection(connection_pool, pg_conn);
+  FreeExampleTableQuery(&etq);
 
   GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, strlen(response));
   send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);

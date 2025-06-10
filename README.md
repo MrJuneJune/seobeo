@@ -1,24 +1,34 @@
-# Seobeo 
+# SeoBeo
 
 <p align="center">
   <img src="/seobeo.png" width="350" height="350" alt="SeoBeo Logo"/>
 </p>
 
-**warning**: Still WIP so don't use it for anything production related. 
+> ⚠️ **Warning**: SeoBeo is a work in progress. It’s not production-ready—use at your own risk.
 
-Seobeo is a lightweight C server built for educational and personal projects. I made this because I got tired of ever changing API libraries and always wanted to write a proper server in C. It's way easier to reason about from the ground up.
+SeoBeo is a lightweight HTTP server written in C, designed for educational use and personal projects. I built this after getting tired of bloated or constantly changing API libraries. Writing a server from scratch in C makes it easier to reason about the entire stack and truly understand how things work under the hood.
 
-## How to run 
+## 🚀 Getting Started
+
 ```bash
 make example
 ```
 
-## TODO
+This will compile and run the example server with basic routes and static file handling.
 
-- Basic CSRF token for forms.
+## ✅ Features
 
-- Write simple tests for basic cases 
+* Epoll-based edge-triggered event loop
+* Minimalist HTTP routing
+* Static asset serving
+* File-based response support
+* Example integration with a PostgreSQL database
+  - Using [PogPool](https://github.com/MrJuneJune/pog_pool)
 
-- Websockets
+## 🔜 Roadmap
 
-- Dockerize it?
+* CSRF protection for form submissions
+* Server-side rendering with simple MVP-style templates
+* WebSocket support
+* Server-Sent Events (SSE)
+* Docker support

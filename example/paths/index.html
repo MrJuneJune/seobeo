@@ -8,6 +8,7 @@
   <link rel="preload" as="image" href="/seobeo.png">
   <link rel="preload" as="image" href="/shiba_open.png">
   <link rel="preload" as="image" href="/shiba_close.png">
+  <link rel="icon" type="image/svg" href="/epi_favicon.svg">
   <style>
     :root {
       --navy: #1a2a3a;
@@ -44,6 +45,13 @@
       max-width: 1200px;
       margin: 0 auto;
       padding: 0 2rem;
+    }
+
+    .links {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 30%;
     }
 
     .nav {
@@ -216,8 +224,13 @@
           <img class="logo-image" src="/seobeo.png" alt="Seobeo Logo">
           <h1>Seobeo</h1>
         </div>
-        <div class="nav-links">
-          <a href="https://github.com/seobeo" target="_blank">GitHub</a>
+        <div class="links">
+          <div class="nav-links">
+            <a href="/example-api.html">API Example</a>
+          </div>
+          <div class="nav-links">
+            <a href="https://github.com/seobeo" target="_blank">GitHub</a>
+          </div>
         </div>
       </nav>
     </div>

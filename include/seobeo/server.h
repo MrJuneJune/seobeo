@@ -73,7 +73,7 @@ typedef struct {
 typedef struct {
   int method;
   char path[MAX_PATH_LEN];
-  char* body;
+  char *body;
   int content_length; 
   char content_type[MAX_CONTENT_TYPE_LEN];
   char query[MAX_QUERY_LEN];
@@ -82,7 +82,7 @@ typedef struct {
   size_t path_params_len;
 } HttpRequestType;
 
-typedef void RequestHandler(int client_fd, HttpRequestType* request);
+typedef void RequestHandler(int client_fd, HttpRequestType *request);
 
 typedef struct {
   int method; 
@@ -96,19 +96,19 @@ extern size_t ROUTE_SIZE;
 
 // Server Related
 int SetNonBlocking(int fd);
-void CreateSocket(int* server_fd);
-void BindToSocket(int* server_fd, struct sockaddr_in* server_addr);
-void ListenToSocket(int* server_fd);
+void CreateSocket(int *server_fd);
+void BindToSocket(int *server_fd, struct sockaddr_in *server_addr);
+void ListenToSocket(int *server_fd);
 
 // Request Related
-void ParseHttpRequest(char* buffer, HttpRequestType* request);
-void ExtractPathFromReferer(const char* string_value, char* out_path, char* out_query); 
-int  SanitizePaths(char* path);
-void HandleRoutes(int client_fd, HttpRequestType* request, Route *routes, size_t route_count);
+void ParseHttpRequest(char *buffer, HttpRequestType *request);
+void ExtractPathFromReferer(const char *string_value, char *out_path, char *out_query); 
+int  SanitizePaths(char *path);
+void HandleRoutes(int client_fd, HttpRequestType *request, Route *routes, size_t route_count);
 void HandleRequest(int client_fd);
 
 // Response Related
-void GenerateResponseHeader(char* buffer, int status, const char* content_type, const int content_length);
+void GenerateResponseHeader(char *buffer, int status, const char *content_type, const int content_length);
 void SendHTTPErrorResponse(int client_fd, int status_code);
 
 // Loggers

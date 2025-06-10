@@ -61,14 +61,14 @@ typedef enum {
 
 // TODO: Split these up?
 // Helper functions 
-const char* SqlToCType(const char *sql_type); 
-char* SkipSpaces(char *p); 
+const char *SqlToCType(const char *sql_type); 
+char *SkipSpaces(char *p); 
 int GetWord(char *line, char *word);
-pid_t* PIDStatus(const char *model_dir, const struct dirent *entry, FILE *models_header, const char *output_folder);
-char* SanitizeHexForJSON(const char* input);
-char* ArrayToString_int(const int* arr, int len, int is_json);
-char* ArrayToString_str(char** arr, int len, int is_json);
-void* ParseArray(const char* value, ArrayElementType type, size_t* out_len);
+pid_t *PIDStatus(const char *model_dir, const struct dirent *entry, FILE *models_header, const char *output_folder);
+char *SanitizeHexForJSON(const char *input);
+char *ArrayToString_int(const int *arr, int len, int is_json);
+char *ArrayToString_str(char** arr, int len, int is_json);
+void *ParseArray(const char *value, ArrayElementType type, size_t *out_len);
 
 // Core SQL to C logic
 void CreateCRUDFiles(const char *table_name, const Column *columns, size_t column_sizes, const char *output_folder); 

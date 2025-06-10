@@ -1,6 +1,7 @@
 #include <seobeo/helper.h>
 
-void GetTimeStamp(char* time_stamp, size_t size) {
+void GetTimeStamp(char *time_stamp, size_t size)
+{
   time_t now = time(NULL);
   struct tm *tm_info = localtime(&now);
   strftime(time_stamp, size, "%Y-%m-%d %H:%M:%S", tm_info);
@@ -17,7 +18,7 @@ int CreateHashPos(const char *key, const size_t size)
   return hash_val % size;
 }
 
-HashMap* CreateHashMap(size_t size, void (*free_value)(void *))
+HashMap *CreateHashMap(size_t size, void (*free_value)(void *))
 {
   HashMap *hash_map = malloc(sizeof(HashMap));
   hash_map->size = size;

@@ -5,23 +5,26 @@
 #include "build/models.h"
 
 volatile sig_atomic_t stop_server = 0;
-volatile ConnectionPool* connection_pool;
+volatile ConnectionPool *connection_pool;
 
-void handle_sigint(int sig) {
+void handle_sigint(int sig)
+{
   stop_server = 1;
 }
 
 // --- Routing logic ---
-void handleGetExampleTable(int client_fd, HttpRequestType* request)
+void handleGetExampleTable(int client_fd, HttpRequestType *request)
 {
   char response_header_buffer[BUFFER_SIZE];
-  const char* content_type = "application/json";
+  const char *content_type = "application/json";
   char response[BUFFER_SIZE];
 
   char where_clause[1024];
-  for (size_t i = 0; i < request->path_params_len; i++) {
-    if (strcmp(request->path_params[i].key, "id") == 0) {
-      const char* id = request->path_params[i].value;
+  for (size_t i = 0; i < request->path_params_len; i++)
+  {
+    if (strcmp(request->path_params[i].key, "id") == 0)
+    {
+      const char *id = request->path_params[i].value;
       sprintf(where_clause, "id='%s'", id);
       WriteToLogs("Requested ID = %s", id);
       break;
@@ -47,7 +50,7 @@ void handleGetExampleTable(int client_fd, HttpRequestType* request)
   return;
 }
 
-void handlePostFoo(int client_fd, HttpRequestType* request)
+void handlePostFoo(int client_fd, HttpRequestType *request)
 {
   char response_header_buffer[BUFFER_SIZE];
   const char *content_type = "application/json";
@@ -57,7 +60,8 @@ void handlePostFoo(int client_fd, HttpRequestType* request)
 
   json_error_t error;
   json_t *root = json_loads(request->body, 0, &error);
-  if (!root) {
+  if (!root)
+  {
     response = "{\"error\": \"Invalid JSON\"}";
     GenerateResponseHeader(response_header_buffer, HTTP_BAD_REQUEST, content_type, strlen(response));
     send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
@@ -96,39 +100,50 @@ void handlePostFoo(int client_fd, HttpRequestType* request)
 
   // --- int_array_col ---
   json_t *int_arr = json_object_get(root, "int_array_col");
-  if (json_is_array(int_arr)) {
+  if (json_is_array(int_arr))
+  {
     size_t len = json_array_size(int_arr);
     example.int_array_col_len = len;
     example.int_array_col = malloc(sizeof(int) * len);
-    for (size_t i = 0; i < len; ++i) {
+    for (size_t i = 0; i < len; ++i)
+    {
       json_t *val = json_array_get(int_arr, i);
       example.int_array_col[i] = json_integer_value(val);
     }
-  } else {
+  }
+  else
+  {
     example.int_array_col = NULL;
     example.int_array_col_len = 0;
   }
 
   // --- text_array_col ---
   json_t *text_arr = json_object_get(root, "text_array_col");
-  if (json_is_array(text_arr)) {
+  if (json_is_array(text_arr))
+  {
     size_t len = json_array_size(text_arr);
     example.text_array_col_len = len;
     example.text_array_col = malloc(sizeof(char *) * len);
-    for (size_t i = 0; i < len; ++i) {
+    for (size_t i = 0; i < len; ++i)
+    {
       json_t *val = json_array_get(text_arr, i);
       const char *str = json_string_value(val);
       example.text_array_col[i] = strdup(str ? str : "");
     }
-  } else {
+  }
+  else
+  {
     example.text_array_col = NULL;
     example.text_array_col_len = 0;
   }
 
   PGconn *pg_conn = BorrowConnection(connection_pool);
-  if (InsertExampleTable(pg_conn, example).status == PGRES_FATAL_ERROR) {
+  if (InsertExampleTable(pg_conn, example).status == PGRES_FATAL_ERROR)
+  {
     response = "{\"insert\": \"failed\"}";
-  } else {
+  }
+  else
+  {
     response = "{\"insert\": \"successful\"}";
   }
   ReleaseConnection(connection_pool, pg_conn);
@@ -140,7 +155,7 @@ void handlePostFoo(int client_fd, HttpRequestType* request)
   send(client_fd,  response, strlen(response), 0);
 }
 
-void handlePutFoo(int client_fd, HttpRequestType* request)
+void handlePutFoo(int client_fd, HttpRequestType *request)
 {
   char response_header_buffer[BUFFER_SIZE];
   const char *content_type = "application/json";
@@ -148,7 +163,8 @@ void handlePutFoo(int client_fd, HttpRequestType* request)
 
   json_error_t error;
   json_t *root = json_loads(request->body, 0, &error);
-  if (!root) {
+  if (!root)
+  {
     response = "{\"error\": \"Invalid JSON\"}";
     GenerateResponseHeader(response_header_buffer, HTTP_BAD_REQUEST, content_type, strlen(response));
     send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
@@ -183,31 +199,39 @@ void handlePutFoo(int client_fd, HttpRequestType* request)
 
   // --- int_array_col ---
   json_t *int_arr = json_object_get(root, "int_array_col");
-  if (json_is_array(int_arr)) {
+  if (json_is_array(int_arr))
+  {
     size_t len = json_array_size(int_arr);
     example.int_array_col_len = len;
     example.int_array_col = malloc(sizeof(int) * len);
-    for (size_t i = 0; i < len; ++i) {
+    for (size_t i = 0; i < len; ++i)
+    {
       json_t *val = json_array_get(int_arr, i);
       example.int_array_col[i] = json_integer_value(val);
     }
-  } else {
+  }
+  else
+  {
     example.int_array_col = NULL;
     example.int_array_col_len = 0;
   }
 
   // --- text_array_col ---
   json_t *text_arr = json_object_get(root, "text_array_col");
-  if (json_is_array(text_arr)) {
+  if (json_is_array(text_arr))
+  {
     size_t len = json_array_size(text_arr);
     example.text_array_col_len = len;
     example.text_array_col = malloc(sizeof(char *) * len);
-    for (size_t i = 0; i < len; ++i) {
+    for (size_t i = 0; i < len; ++i)
+    {
       json_t *val = json_array_get(text_arr, i);
       const char *str = json_string_value(val);
       example.text_array_col[i] = strdup(str ? str : "");
     }
-  } else {
+  }
+  else
+  {
     example.text_array_col = NULL;
     example.text_array_col_len = 0;
   }
@@ -215,9 +239,12 @@ void handlePutFoo(int client_fd, HttpRequestType* request)
   PGconn *pg_conn = BorrowConnection(connection_pool);
 
   const char *where_clause = "id = 'b6d4c431-f327-4a4a-9345-320aa3cd7e31'";
-  if (UpdateExampleTable(pg_conn, example, where_clause).status == PGRES_FATAL_ERROR) {
+  if (UpdateExampleTable(pg_conn, example, where_clause).status == PGRES_FATAL_ERROR)
+  {
     response = "{\"update\": \"failed\"}";
-  } else {
+  }
+  else
+  {
     response = "{\"update\": \"successful\"}";
   }
 
@@ -229,7 +256,7 @@ void handlePutFoo(int client_fd, HttpRequestType* request)
   send(client_fd, response, strlen(response), 0);
 }
 
-void handleDeleteFoo(int client_fd, HttpRequestType* request)
+void handleDeleteFoo(int client_fd, HttpRequestType *request)
 {
   char response_header_buffer[BUFFER_SIZE];
   const char *content_type = "application/json";
@@ -237,7 +264,8 @@ void handleDeleteFoo(int client_fd, HttpRequestType* request)
 
   json_error_t error;
   json_t *root = json_loads(request->body, 0, &error);
-  if (!root) {
+  if (!root)
+  {
     response = "{\"error\": \"Invalid JSON\"}";
     GenerateResponseHeader(response_header_buffer, HTTP_BAD_REQUEST, content_type, strlen(response));
     send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
@@ -289,7 +317,8 @@ Route ROUTE[] = {
 size_t ROUTE_SIZE = 4;
 
 // --- main server loop ---
-int main() {
+int main()
+{
   int server_fd;
   struct sockaddr_in server_addr;
 

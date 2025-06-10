@@ -12,7 +12,7 @@ typedef struct {
 } ConnectionPool;
 
 void InitPool(volatile ConnectionPool *pool, const char *conninfo);
-PGconn* BorrowConnection(volatile ConnectionPool *pool); 
+PGconn *BorrowConnection(volatile ConnectionPool *pool); 
 void ReleaseConnection(volatile ConnectionPool *pool, PGconn *conn); 
 void ClosePool(volatile ConnectionPool *pool); 
 void RunSQLFile(PGconn *conn, const char *filename);

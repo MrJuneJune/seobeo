@@ -11,7 +11,7 @@
 
 // TODO: Change so that requests, and response are properly handled using arena.
 typedef struct {
-  char* buffer;
+  char *buffer;
   size_t capacity;
   size_t offset;
 } Arena;
@@ -29,11 +29,11 @@ typedef struct {
 } HashMap;
 
 // For logging..
-void GetTimeStamp(char* time_stamp, size_t size);
+void GetTimeStamp(char *time_stamp, size_t size);
 
 // HashMaps
 int CreateHashPos(const char *key, const size_t size);
-HashMap* CreateHashMap(size_t size, void (*free_value)(void *));
+HashMap *CreateHashMap(size_t size, void (*free_value)(void *));
 void InsertHashMap(HashMap *hash_map, const char *key, void *value);
 void *GetHashMapValue(HashMap *hash_map, const char *key);
 void FreeHashMap(HashMap *hash_map);

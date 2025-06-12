@@ -32,7 +32,7 @@ void handleGetExampleTable(int client_fd, HttpRequestType *request)
   }
 
   PGconn *pg_conn = BorrowConnection(connection_pool);
-  ExampleTableQuery etq = QueryExampleTable(pg_conn, "*","id=\'b6d4c431-f327-4a4a-9345-320aa3cd7e31\'");
+  ExampleTableQuery etq = QueryExampleTable(pg_conn, "*",where_clause);
   if (etq.ExampleTable != NULL)
   {
     sprintf(response, SerializeExampleTable(*etq.ExampleTable));

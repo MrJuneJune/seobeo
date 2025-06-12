@@ -83,3 +83,39 @@ void FreeHashMap(HashMap *hash_map)
   free(hash_map->entries);
   free(hash_map);
 }
+
+Arena *ArenaCreate(size_t size)
+{
+  Arena *arena = malloc(sizeof(Arena));
+  if (!arena) return NULL;
+  arena->buffer = malloc(size);
+  if (!arena->buffer) {
+    free(arena);
+    return NULL;
+  }
+  arena->capacity = size;
+  arena->offset = 0;
+  return arena;
+}
+
+void *ArenaAlloc(Arena *arena, size_t size)
+{
+  if (arena->offset + size > arena->capacity) return NULL;
+  void *ptr = arena->buffer + arena->offset;
+  arena->offset += size;
+  return ptr;
+}
+
+void ArenaReset(Arena *arena)
+{
+  arena->offset = 0;
+}
+
+void ArenaDestroy(Arena *arena)
+{
+  if (arena) {
+    free(arena->buffer);
+    free(arena);
+  }
+}
+

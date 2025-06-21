@@ -301,14 +301,22 @@ int MatchRoute(const char *pattern, const char *path, HttpRequestType *req)
 
 void CleanupClient(int client_fd)
 {
-  // Enable TCP_NODELAY for faster response (disable Nagle's algorithm)
+  // Disable Nagle's algorithm (optional for closed socket, but harmless)
   int opt = 1;
   setsockopt(client_fd, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
-  
-  if (global_epfd != -1)
-  {
+
+  if (global_epfd != -1) {
+#if defined(__APPLE__) || defined(__FreeBSD__)
+    // kqueue: remove fd
+    struct kevent ev;
+    EV_SET(&ev, client_fd, EVFILT_READ, EV_DELETE, 0, 0, NULL);
+    kevent(global_epfd, &ev, 1, NULL, 0, NULL);
+#else
+    // epoll
     epoll_ctl(global_epfd, EPOLL_CTL_DEL, client_fd, NULL);
+#endif
   }
+
   close(client_fd);
 }
 
@@ -609,6 +617,71 @@ void WriteToLogs(const char *restrict format, ...)
 
 void RunEpollLoop(const int server_fd)
 {
+  #if defined(__APPLE__) || defined(__FreeBSD__)
+  struct kevent change_event;
+  struct kevent events_buffer[MAX_EVENTS];
+
+  int kq = kqueue();
+  if (kq == -1) {
+    perror("kqueue");
+    return;
+  }
+
+  global_epfd = kq;
+
+  EV_SET(&change_event, server_fd, EVFILT_READ, EV_ADD, 0, 0, NULL);
+  if (kevent(kq, &change_event, 1, NULL, 0, NULL) == -1) {
+    perror("kevent register");
+    close(kq);
+    return;
+  }
+
+  while (!stop_server) {
+    int n = kevent(kq, NULL, 0, events_buffer, MAX_EVENTS, NULL);
+    if (n == -1) {
+      if (errno == EINTR) continue;
+      perror("kevent");
+      break;
+    }
+
+    for (int i = 0; i < n; i++) {
+      int fd = (int)events_buffer[i].ident;
+
+      if (fd == server_fd) {
+        while (1) {
+          int client_fd = accept(server_fd, NULL, NULL);
+          if (client_fd == -1) {
+            if (errno != EAGAIN && errno != EWOULDBLOCK) {
+              perror("accept");
+            }
+            break;
+          }
+
+          if (SetNonBlocking(client_fd) == -1) {
+            perror("SetNonBlocking");
+            close(client_fd);
+            continue;
+          }
+
+          int opt = 1;
+          setsockopt(client_fd, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
+
+          EV_SET(&change_event, client_fd, EVFILT_READ, EV_ADD | EV_CLEAR, 0, 0, NULL);
+          if (kevent(kq, &change_event, 1, NULL, 0, NULL) == -1) {
+            perror("kevent add client");
+            close(client_fd);
+            continue;
+          }
+        }
+      } else {
+        HandleRequest(fd);
+      }
+    }
+  }
+
+  close(kq);
+  global_epfd = -1;
+  #else
   struct epoll_event events_buffer[MAX_EVENTS];
   // EPOLLIN means ready for reading
   struct epoll_event ev = {
@@ -703,4 +776,5 @@ void RunEpollLoop(const int server_fd)
 
   close(epfd);
   global_epfd = -1;
+  #endif
 }

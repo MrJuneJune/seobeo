@@ -1,7 +1,6 @@
 #ifndef SEOBEO_SERVER_H
 #define SEOBEO_SERVER_H
 
-// OS depedent
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -13,15 +12,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/epoll.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
 
+// OS depedent
+#if defined(__APPLE__) || defined(__FreeBSD__)
+#include <sys/event.h>
+#else
+#include <sys/epoll.h>
+#endif
+
 // third party
-#include <jansson.h>
+// #include <jansson.h>
 
 #define PORT 6969  // good number
 #define BUFFER_SIZE 8192  // ngnix default I believe
@@ -115,7 +120,8 @@ void SendHTTPErrorResponse(int client_fd, int status_code);
 void WriteRequestLog(HttpRequestType request);
 void WriteToLogs(const char *restrict format, ...);
 
-// Epoll Logci
+// Epoll Logic
 void RunEpollLoop(const int server_fd);
+void CleanupClient(int client_fd);
 
 #endif // SEOBEO_SERVER_H

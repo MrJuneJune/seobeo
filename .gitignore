@@ -14,3 +14,6 @@ tags
 # Compiled files
 *.a
 *.so
+
+# current session
+curr

@@ -427,6 +427,8 @@ void ServeStaticFileFallback(int client_fd, HttpRequestType *request)
 
 void HandleRoutes(int client_fd, HttpRequestType *request, Route *routes, size_t route_count)
 {
+  // Checks for API first
+  // TODO: Maybe make a simple route check so we don't need to do both?.
   for (size_t i = 0; i < route_count; i++)
   {
     if (routes[i].method != request->method) continue;
@@ -439,6 +441,7 @@ void HandleRoutes(int client_fd, HttpRequestType *request, Route *routes, size_t
     }
   }
 
+  // If it is GET, we static file fallback.
   if (request->method == HTTP_METHOD_GET)
   {
     ServeStaticFileFallback(client_fd, request);

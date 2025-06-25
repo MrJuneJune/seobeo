@@ -37,10 +37,13 @@ void InsertHashMap(HashMap *hash_map, const char *key, void *value);
 void *GetHashMapValue(HashMap *hash_map, const char *key);
 void FreeHashMap(HashMap *hash_map);
 
-// Arena
+// malloc Arena and buffer. It returns NULL when it is out of memory to create these.
 Arena *ArenaCreate(size_t size);
+// Allocate size if size + buffer is smaller than capacity else return nullptr.
 void *ArenaAlloc(Arena *arena, size_t size);
+// Set offset to 0. Does not free.
 void ArenaReset(Arena *arena);
+// Free Both Areana and its buffer
 void ArenaDestroy(Arena *arena);
 
 

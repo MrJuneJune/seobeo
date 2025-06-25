@@ -1,8 +1,10 @@
 // --- Custom Libs --- 
 #include <seobeo/helper.h>
 #include <seobeo/server.h>
+#include <seobeo/os.h>
 #include "pog_pool/connection.h"
 #include "build/models.h"
+#include <jansson.h>
 
 volatile sig_atomic_t stop_server = 0;
 volatile ConnectionPool *connection_pool;
@@ -325,21 +327,51 @@ Route ROUTE[] = {
 };
 size_t ROUTE_SIZE = 4;
 
+char* ReadSQLFile(char* file_name)
+{
+  FILE *fp = fopen(file_name, "r");
+  if (!fp) 
+  {
+    perror("Cannot open SQL file");
+    return NULL;
+  }
+
+  fseek(fp, 0, SEEK_END);
+  long length = ftell(fp);
+  rewind(fp);
+
+  char* sql = malloc(length+10);
+
+  fread(sql, 1, length, fp);
+  sql[length] = '\0'; 
+  fclose(fp);
+
+  return sql;
+}
+
 // --- main server loop ---
 int main()
 {
   int server_fd;
   struct sockaddr_in server_addr;
 
-  // Starting server
-  CreateSocket(&server_fd);
-  BindToSocket(&server_fd, &server_addr);
-  ListenToSocket(&server_fd);
-
   // DB manager
   ConnectionPool connection_pool_real={0};
   connection_pool = &connection_pool_real;
   InitPool(connection_pool, "postgres://pog_pool:pog_pool@localhost:4269/pog_pool");
+
+  // Create table
+  PGconn *pg_conn = BorrowConnection(connection_pool);
+  char *sql = ReadSQLFile("models/ExampleTable.sql");
+  PGresult *res = PQexec(pg_conn, sql);
+  PQclear(res);
+  ReleaseConnection(connection_pool, pg_conn);
+  printf("Created a ExampleTable.\n");
+
+  // Starting server
+  CreateSocket(&server_fd);
+  BindToSocket(&server_fd, &server_addr);
+  ListenToSocket(&server_fd);
 
   // Gracefully stop...
   signal(SIGINT, handle_sigint);

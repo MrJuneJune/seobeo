@@ -11,10 +11,12 @@ SeoBeo is a lightweight HTTP server written in C, designed for educational use a
 ## 🚀 Getting Started
 
 ```bash
-make example
+make stand_alone_example
 ```
 
 This will compile and run the example server with basic routes and static file handling.
+
+For rest API example, please run docker-compose file within `example/rest_api` to run DB.
 
 ## ✅ Features
 

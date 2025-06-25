@@ -17,3 +17,6 @@ tags
 
 # current session
 curr
+
+# Do not copy over third_party lib.
+**/third_party/**

@@ -1,8 +1,9 @@
 #include <seobeo/server.h>
 #include <seobeo/helper.h>
+#include <seobeo/os.h>
 
 Route ROUTE[] = {0};
-size_t ROUTE_SIZE = 4;
+size_t ROUTE_SIZE = 1;
 
 
 volatile sig_atomic_t stop_server = 0;
@@ -27,7 +28,7 @@ int main()
   signal(SIGINT, handle_sigint);
 
   // Using Epoll Fd to assign server_fd and client_fd.
-  RunEpollLoop(server_fd);
+  RunEventLoop(server_fd);
 
   // TODO: Maybe assign fd into arena and clean up at the end easily.
   printf("Shutting down server...\n");

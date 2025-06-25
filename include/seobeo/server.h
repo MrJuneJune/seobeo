@@ -1,3 +1,4 @@
+#pragma once
 #ifndef SEOBEO_SERVER_H
 #define SEOBEO_SERVER_H
 
@@ -18,13 +19,6 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
-// OS depedent
-#if defined(__APPLE__) || defined(__FreeBSD__)
-#include <sys/event.h>
-#else
-#include <sys/epoll.h>
-#endif
-
 // third party
 // #include <jansson.h>
 
@@ -32,7 +26,7 @@
 #define BUFFER_SIZE 8192  // ngnix default I believe
 #define STATIC_FILE_BUFFER 1048576
 #define LOGGER_BUFFER 8192
-#define MAX_EVENTS 100
+#define MAX_EVENTS 1000
 #define MAX_QUERY_LEN 1024
 #define MAX_PATH_LEN 1024
 #define MAX_CONTENT_TYPE_LEN 128
@@ -41,8 +35,7 @@
 #define MAX_KEY_LEN 64
 #define MAX_VALUE_LEN 256
 
-
-
+// HTTP STATUS CODE
 #define HTTP_OK 200
 #define HTTP_CREATED 201
 #define HTTP_MOVED_PERMANENTLY 301
@@ -60,10 +53,12 @@
 #define HTTP_METHOD_PUT 3
 #define HTTP_METHOD_DELETE 4
 
+// HTTP HEADER
 #define GET_HEADER "GET "
 #define POST_HEADER "POST "
 #define PUT_HEADER "PUT "
 #define DELETE_HEADER "DELETE "
+// TODO: FIX THIS.
 #define CONTENT_LENGTH_HEADER "Content-Length: "
 #define CONTENT_TYPE_HEADER "Content-Type: "
 
@@ -119,9 +114,5 @@ void SendHTTPErrorResponse(int client_fd, int status_code);
 // Loggers
 void WriteRequestLog(HttpRequestType request);
 void WriteToLogs(const char *restrict format, ...);
-
-// Epoll Logic
-void RunEpollLoop(const int server_fd);
-void CleanupClient(int client_fd);
 
 #endif // SEOBEO_SERVER_H

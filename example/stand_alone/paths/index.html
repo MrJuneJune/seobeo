@@ -1,0 +1,655 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seobeo - Lightweight C Server</title>
+  <!-- Preload stuff -->
+  <link rel="preload" as="image" href="/seobeo.png">
+  <link rel="preload" as="image" href="/shiba_open.png">
+  <link rel="preload" as="image" href="/shiba_close.png">
+  <link rel="icon" type="image/svg" href="/epi_favicon.svg">
+  <style>
+    :root {
+      --navy: #1a2a3a;
+      --light-blue: #e5eef5;
+      --accent-blue: #4a7bab;
+      --accent-yellow: #f9d56e;
+      --white: #ffffff;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: var(--light-blue);
+      color: var(--navy);
+      line-height: 1.6;
+    }
+
+    header {
+      background-color: var(--white);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      padding: 1rem 0;
+      position: fixed;
+      width: 100%;
+      top: 0;
+      z-index: 100;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 2rem;
+    }
+
+    .links {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 30%;
+    }
+
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .logo img {
+      height: 50px;
+      width: 50px;
+    }
+
+    .logo h1 {
+      font-size: 1.8rem;
+      font-weight: 600;
+      color: var(--navy);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: var(--navy);
+      font-weight: 500;
+      transition: color 0.3s;
+    }
+
+    .nav-links a:hover {
+      color: var(--accent-blue);
+    }
+
+    .hero {
+      margin-top: 100px;
+      padding: 5rem 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .hero-content {
+      flex: 1;
+    }
+
+    .hero-image {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+    }
+
+    .hero-image img {
+      max-width: 100%;
+      height: auto;
+    }
+
+    h2 {
+      font-size: 3rem;
+      margin-bottom: 1.5rem;
+      color: var(--navy);
+    }
+
+    .subtitle {
+      font-size: 1.2rem;
+      margin-bottom: 2rem;
+      color: var(--accent-blue);
+    }
+
+    @media screen and (max-width: 768px) {
+      .hero {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      .hero-content, .hero-image {
+        flex: none;
+        width: 100%;
+      }
+
+      .hero-image {
+        margin-top: 2rem;
+      }
+
+      .nav-links {
+        display: none;
+      }
+    }
+
+    .game-container {
+      position: relative;
+      width: 800px;
+      height: 300px;
+      margin-top: 20px;
+    }
+
+    canvas {
+      border: 2px solid #1a2a3a;
+      background-color: #fff;
+    }
+
+    .game-ui {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: #1a2a3a;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .start-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background-color: rgba(255, 255, 255, 0.8);
+    }
+
+    .start-screen h1 {
+      font-size: 32px;
+      color: #1a2a3a;
+      margin-bottom: 20px;
+    }
+
+    .start-screen p {
+      font-size: 18px;
+      color: #4a7bab;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+
+    .start-btn {
+      padding: 10px 30px;
+      background-color: #4a7bab;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 18px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .start-btn:hover {
+      background-color: #1a2a3a;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <nav class="nav">
+        <div class="logo">
+          <img class="logo-image" src="/seobeo.png" alt="Seobeo Logo">
+          <h1>Seobeo</h1>
+        </div>
+        <div class="links">
+          <div class="nav-links">
+            <a href="https://github.com/seobeo" target="_blank">GitHub</a>
+          </div>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <div class="hero-content">
+          <h2>Lightweight C Server</h2>
+          <p class="subtitle">For Simple mind minions</p>
+          <p>Seobeo is a minimal footprint C server built for simplicity.</p>
+          <p>Here is a dumb game that AI made and I had to fix some bugs on it. I don't know what else to add for now.</p>
+        </div>
+        <div class="game-container">
+          <canvas id="gameCanvas" width="800" height="300"></canvas>
+          <div class="game-ui">
+            <div id="score">Score: 0</div>
+            <div id="highScore">High Score: 0</div>
+          </div>
+          <div id="startScreen" class="start-screen">
+            <h1>Seobeo Runner</h1>
+            <p>Press SPACE or tap to jump.<br>Avoid servers and collect coins!</p>
+            <button id="startButton" class="start-btn">Start Game</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreDisplay = document.getElementById('score');
+    const highScoreDisplay = document.getElementById('highScore');
+    const startScreen = document.getElementById('startScreen');
+    const startButton = document.getElementById('startButton');
+
+    // Game variables
+    let score = 0;
+    let highScore = 0;
+    let gameSpeed = 5;
+    let gameOver = false;
+    let playing = false;
+    let jumpPressed = false;
+
+    // Load high score from local storage
+    if (localStorage.getItem('seobeoHighScore')) {
+      highScore = parseInt(localStorage.getItem('seobeoHighScore'));
+      highScoreDisplay.textContent = `High Score: ${highScore}`;
+    }
+
+    class Player {
+
+      constructor() {
+        this.x = 50;
+        this.y = 230;
+        this.width = 50;
+        this.height = 50;
+        this.jumping = false;
+        this.jumpForce = 15;
+        this.gravity = 0.5;
+        this.velocityY = 0;
+        this.jumpCount = 0;
+        this.maxJumps = 1;
+        this.shibaOpen = new Image();
+        this.shibaClose = new Image();
+
+        this.shibaOpen.src = '/shiba_open.png';
+        this.shibaClose.src = '/shiba_close.png';
+      }
+
+      
+      draw() {
+        if (this.jumping) {
+          ctx.drawImage(this.shibaClose, this.x, this.y, this.width, this.height);
+        } else {
+          ctx.drawImage(this.shibaOpen, this.x, this.y, this.width, this.height);
+        }
+      }
+      
+      update() {
+        if (this.jumping) {
+          this.velocityY += this.gravity;
+          this.y += this.velocityY;
+          
+          // Check if landed
+          if (this.y >= 230) {
+            this.y = 230;
+            this.jumping = false;
+            this.velocityY = 0;
+            this.jumpCount = 0;
+          }
+        }
+      }
+      
+      jump() {
+        if (this.jumpCount < this.maxJumps) {
+          this.jumping = true;
+          this.velocityY = -this.jumpForce;
+          this.jumpCount++;
+        }
+      }
+      
+      reset() {
+        this.y = 230;
+        this.jumping = false;
+        this.velocityY = 0;
+        this.jumpCount = 0;
+      }
+    };
+
+    const player = new Player();
+
+    class Obstacle {
+      constructor(type = 'server') {
+        this.x = canvas.width;
+        this.width = type === 'server' ? 40 : 20;
+        this.height = type === 'server' ? 60 : 20;
+        this.y = type === 'server' ? canvas.height - this.height - 20 : Math.random() * 100 + 50;
+        this.type = type; // 'server' or 'coin'
+        this.collected = false;
+      }
+      
+      draw() {
+        if (this.type === 'server') {
+          // Draw server rack
+          ctx.fillStyle = '#8c9daa';
+          ctx.strokeStyle = '#1a2a3a';
+          ctx.lineWidth = 2;
+          
+          // Main body
+          ctx.fillRect(this.x, this.y, this.width, this.height);
+          ctx.strokeRect(this.x, this.y, this.width, this.height);
+          
+          // Server details
+          ctx.fillStyle = '#1a2a3a';
+          // Lines
+          ctx.fillRect(this.x + 5, this.y + 10, 30, 2);
+          ctx.fillRect(this.x + 5, this.y + 20, 30, 2);
+          ctx.fillRect(this.x + 5, this.y + 30, 30, 2);
+          
+          // LED lights
+          ctx.fillStyle = '#f9d56e';
+          ctx.beginPath();
+          ctx.arc(this.x + 30, this.y + 5, 2, 0, Math.PI * 2);
+          ctx.fill();
+          
+          ctx.fillStyle = '#4fff4f';
+          ctx.beginPath();
+          ctx.arc(this.x + 30, this.y + 5 + 8, 2, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (this.type === 'coin' && !this.collected) {
+          // Draw coin
+          ctx.fillStyle = '#f9d56e';
+          ctx.strokeStyle = '#cd7f32';
+          ctx.lineWidth = 2;
+          
+          ctx.beginPath();
+          ctx.arc(this.x + 10, this.y + 10, 10, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          
+          // Coin highlight
+          ctx.fillStyle = '#fff8d4';
+          ctx.beginPath();
+          ctx.arc(this.x + 7, this.y + 7, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      
+      update() {
+        this.x -= gameSpeed;
+      }
+    }
+
+    const ground = {
+      y: canvas.height - 20,
+      draw() {
+        ctx.fillStyle = '#d0d0d0';
+        ctx.fillRect(0, this.y, canvas.width, 20);
+        
+        // Add some ground details
+        ctx.fillStyle = '#a0a0a0';
+        for (let i = 0; i < canvas.width; i += 50) {
+          ctx.fillRect(i, this.y + 5, 20, 2);
+          ctx.fillRect(i + 30, this.y + 12, 15, 2);
+        }
+      }
+    };
+
+    class Cloud {
+      constructor() {
+        this.x = canvas.width;
+        this.y = Math.random() * 100 + 10;
+        this.width = Math.random() * 60 + 40;
+        this.height = this.width * 0.6;
+        this.speed = gameSpeed * 0.4;
+        this.image = new Image();
+        this.image.src = '/cloud.png'; 
+      }
+      
+      draw() {
+        ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+       }
+      
+      update() {
+        this.x -= this.speed;
+      }
+    }
+
+    // Game objects
+    let obstacles = [];
+    let clouds = [];
+    let frames = 0;
+    let spawnRate = 120; // Controls how often obstacles spawn
+    let coinSpawnChance = 0.2; // 20% chance to spawn a coin
+
+    // Spawn objects
+    function spawnObstacle() {
+      // Decide if this obstacle is a server or a coin
+      const type = Math.random() < coinSpawnChance ? 'coin' : 'server';
+      obstacles.push(new Obstacle(type));
+    }
+
+    function spawnCloud() {
+      clouds.push(new Cloud());
+    }
+
+    // Check for collisions
+    function checkCollisions() {
+      for (let i = 0; i < obstacles.length; i++) {
+        const o = obstacles[i];
+        
+        // Skip collected coins
+        if (o.type === 'coin' && o.collected) continue;
+        
+        // Check for collision with player
+        if (
+          player.x < o.x + o.width &&
+          player.x + player.width > o.x &&
+          player.y < o.y + o.height &&
+          player.y + player.height > o.y
+        ) {
+          if (o.type === 'server') {
+            // Collision with server - game over
+            gameOver = true;
+            playing = false;
+            
+            // Update high score if needed
+            if (score > highScore) {
+              highScore = score;
+              localStorage.setItem('seobeoHighScore', highScore);
+              highScoreDisplay.textContent = `High Score: ${highScore}`;
+            }
+            
+            // Show start screen with game over message
+            startScreen.querySelector('h1').textContent = 'Game Over!';
+            startScreen.querySelector('p').textContent = `Your score: ${score}`;
+            startScreen.querySelector('button').textContent = 'Play Again';
+            startScreen.classList.remove('hidden');
+          } else if (o.type === 'coin' && !o.collected) {
+            // Collected a coin
+            o.collected = true;
+            score += 50;
+            scoreDisplay.textContent = `Score: ${score}`;
+          }
+        }
+      }
+    }
+
+    // Main game functions
+    function update() {
+      frames++;
+      
+      // Increase game speed over time
+      if (frames % 1000 === 0) {
+        gameSpeed += 0.5;
+      }
+      
+      // Spawn obstacles
+      if (frames % spawnRate === 0) {
+        spawnObstacle();
+        
+        // Gradually decrease spawn rate (make game harder)
+        if (spawnRate > 60) {
+          spawnRate--;
+        }
+      }
+      
+      // Spawn clouds occasionally
+      if (frames % 200 === 0) {
+        spawnCloud();
+      }
+      
+      player.update();
+      
+      // Update obstacles and remove ones that are off-screen
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        obstacles[i].update();
+        
+        // Remove obstacles that have moved off screen
+        if (obstacles[i].x + obstacles[i].width < 0) {
+          obstacles.splice(i, 1);
+          
+          // Add score for avoiding servers
+          if (!gameOver && obstacles[i] && obstacles[i].type === 'server') {
+            score += 10;
+            scoreDisplay.textContent = `Score: ${score}`;
+          }
+        }
+      }
+      
+      // Update clouds and remove ones that are off-screen
+      for (let i = clouds.length - 1; i >= 0; i--) {
+        clouds[i].update();
+        
+        if (clouds[i].x + clouds[i].width < 0) {
+          clouds.splice(i, 1);
+        }
+      }
+      
+      // Check for collisions
+      checkCollisions();
+    }
+
+    function draw() {
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw clouds
+      clouds.forEach(cloud => cloud.draw());
+      
+      // Draw ground
+      ground.draw();
+      
+      // Draw player
+      player.draw();
+      
+      // Draw obstacles
+      obstacles.forEach(obstacle => obstacle.draw());
+    }
+
+    // Game loop
+    function gameLoop() {
+      if (playing) {
+        update();
+        draw();
+        
+        // Continue the game loop
+        requestAnimationFrame(gameLoop);
+      }
+    }
+
+    // Start the game
+    function startGame() {
+      // Reset game state
+      gameOver = false;
+      playing = true;
+      score = 0;
+      gameSpeed = 4;
+      frames = 0;
+      spawnRate = 120;
+      obstacles = [];
+      clouds = [];
+      player.reset();
+      
+      // Update UI
+      scoreDisplay.textContent = `Score: ${score}`;
+      startScreen.classList.add('hidden');
+      
+      // Add some initial clouds
+      for (let i = 0; i < 3; i++) {
+        const cloud = new Cloud();
+        cloud.x = Math.random() * canvas.width;
+        clouds.push(cloud);
+      }
+      
+      // Start game loop
+      gameLoop();
+    }
+
+    // Event listeners
+    startButton.addEventListener('click', startGame);
+
+    // Jump controls
+    document.addEventListener('keydown', function(e) {
+      if ((e.code === 'Space' || e.code === 'ArrowUp') && !jumpPressed) {
+        jumpPressed = true;
+        
+        if (playing) {
+          player.jump();
+        }
+      }
+    });
+
+    document.addEventListener('keyup', function(e) {
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
+        jumpPressed = false;
+      }
+    });
+
+    // Touch controls for mobile
+    canvas.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      if (playing) {
+        player.jump();
+      }
+    });
+
+    // Click to jump
+    canvas.addEventListener('mousedown', function() {
+      if (playing) {
+        player.jump();
+      }
+    });
+
+    // Update high score display
+    highScoreDisplay.textContent = `High Score: ${highScore}`;
+  </script>
+</body>
+</html>
+
+

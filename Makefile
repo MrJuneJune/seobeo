@@ -1,30 +1,48 @@
 CC = gcc
-CFLAGS = -Iinclude -I./example/third_party/include -Lbuild -L./example/third_party -lpog_pool -lseobeo -lpq -ljansson
+# TODO: Remove jasson and use custom one.
+REST_API_CFLAGS = -Iinclude -I./example/rest_api/third_party/include -I./example/rest_api/build -Lbuild -L./example/rest_api -lpog_pool -lseobeo -lpq -ljansson
+CFLAGS =  -Iinclude -Lbuild -lseobeo 
 BIN_DIR = bin
 SRC_DIR = src
 BUILD_DIR = build
 EXAMPLE_BUILD = example/build
 MODEL_SRCS := $(wildcard example/build/model_*.c)
 
-# Need to use find since we create these models. I auto set it to build path.
-example: example/main.c auto_generate seobeo | $(BIN_DIR)
-	$(CC) example/main.c $(MODEL_SRCS) -I./example/build  $(CFLAGS) -o $(BIN_DIR)/main && \
-	cd example && \
-	../$(BIN_DIR)/main
+# Find os specific
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+	SERVER_SRC := $(BUILD_DIR)/server_mac.o
+else
+	SERVER_SRC := $(BUILD_DIR)/server_linux.o
+endif
 
-auto_generate: $(EXAMPLE_BUILD)
-	$(CC) example/generate_models.c $(CFLAGS) -o $(BIN_DIR)/auto_generate
-	cd example && \
-	../$(BIN_DIR)/auto_generate
+rest_api_Example: example/rest_api/main.c auto_generate seobeo | $(BIN_DIR)
+	$(CC) example/rest_api/main.c $(MODEL_SRCS) $(REST_API_CFLAGS) -o $(BIN_DIR)/rest_api_server && \
+	cd example/rest_api && ../../$(BIN_DIR)/rest_api_server
 
-seobeo: helper.o server.o
-	ar rcs $(BUILD_DIR)/libseobeo.a $(BUILD_DIR)/*.o
+stand_alone_example:  example/stand_alone/main.c seobeo | $(BIN_DIR)
+	$(CC) example/stand_alone/main.c  $(CFLAGS) -o $(BIN_DIR)/stand_alone_server && \
+	cd example/stand_alone && ../../$(BIN_DIR)/stand_alone_server
 
-helper.o:  $(SRC_DIR)/helper.c | $(BUILD_DIR)
-	$(CC) -c $(SRC_DIR)/helper.c -o $(BUILD_DIR)/helper.o -Iinclude
+# Related to PogPool
+auto_generate: | $(BIN_DIR)
+	$(CC) example/generate_models.c $(REST_API_CFLAGS) -o $(BIN_DIR)/auto_generate && \
+	cd example && ../$(BIN_DIR)/auto_generate
 
-server.o:  $(SRC_DIR)/server.c | $(BUILD_DIR)
-	$(CC) -c $(SRC_DIR)/server.c  -o $(BUILD_DIR)/server.o -Iinclude
+seobeo: $(BUILD_DIR)/helper.o $(BUILD_DIR)/server.o $(SERVER_SRC)
+	ar rcs $(BUILD_DIR)/libseobeo.a $^
+
+$(BUILD_DIR)/server.o: $(SRC_DIR)/server.c | $(BUILD_DIR)
+	$(CC) -c $< -o $@ -Iinclude
+
+$(BUILD_DIR)/server_mac.o: $(SRC_DIR)/mac/server.c | $(BUILD_DIR)
+	$(CC) -c $< -o $@ -Iinclude
+
+$(BUILD_DIR)/server_linux.o: $(SRC_DIR)/linux/server.c | $(BUILD_DIR)
+	$(CC) -c $< -o $@ -Iinclude
+
+$(BUILD_DIR)/helper.o: $(SRC_DIR)/helper.c | $(BUILD_DIR)
+	$(CC) -c $< -o $@ -Iinclude
 
 $(BIN_DIR):
 	mkdir -p $(BIN_DIR)
@@ -36,4 +54,5 @@ $(EXAMPLE_BUILD):
 	mkdir -p $(EXAMPLE_BUILD)
 
 clean:
-	rm -rf $(BIN_DIR) *.o $(LIB_DIR)/*.o
+	rm -rf $(BIN_DIR) $(BUILD_DIR) $(EXAMPLE_BUILD)
+

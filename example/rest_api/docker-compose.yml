@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16
+    container_name: my_postgres
+    environment:
+      POSTGRES_USER: pog_pool 
+      POSTGRES_PASSWORD: pog_pool
+      POSTGRES_DB: pog_pool 
+    ports:
+      - "4269:5432"
+

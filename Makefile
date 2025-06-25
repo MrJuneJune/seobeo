@@ -1,12 +1,12 @@
 CC = gcc
 # TODO: Remove jasson and use custom one.
-REST_API_CFLAGS = -Iinclude -I./example/rest_api/third_party/include -I./example/rest_api/build -Lbuild -L./example/rest_api -lpog_pool -lseobeo -lpq -ljansson
+REST_API_CFLAGS = -Iinclude -I./example/rest_api/third_party/include -L./example/rest_api/third_party/lib -Lbuild -L./example/rest_api -lpog_pool -lseobeo -lpq -ljansson
 CFLAGS =  -Iinclude -Lbuild -lseobeo 
 BIN_DIR = bin
 SRC_DIR = src
 BUILD_DIR = build
 EXAMPLE_BUILD = example/build
-MODEL_SRCS := $(wildcard example/build/model_*.c)
+MODEL_SRCS := $(wildcard example/rest_api/build/model_*.c)
 
 # Find os specific
 UNAME_S := $(shell uname -s)
@@ -16,7 +16,7 @@ else
 	SERVER_SRC := $(BUILD_DIR)/server_linux.o
 endif
 
-rest_api_Example: example/rest_api/main.c auto_generate seobeo | $(BIN_DIR)
+rest_api_example: example/rest_api/main.c auto_generate seobeo | $(BIN_DIR)
 	$(CC) example/rest_api/main.c $(MODEL_SRCS) $(REST_API_CFLAGS) -o $(BIN_DIR)/rest_api_server && \
 	cd example/rest_api && ../../$(BIN_DIR)/rest_api_server
 
@@ -26,8 +26,8 @@ stand_alone_example:  example/stand_alone/main.c seobeo | $(BIN_DIR)
 
 # Related to PogPool
 auto_generate: | $(BIN_DIR)
-	$(CC) example/generate_models.c $(REST_API_CFLAGS) -o $(BIN_DIR)/auto_generate && \
-	cd example && ../$(BIN_DIR)/auto_generate
+	$(CC) example/rest_api/generate_models.c $(REST_API_CFLAGS) -o $(BIN_DIR)/auto_generate && \
+	cd example/rest_api && ../../$(BIN_DIR)/auto_generate
 
 seobeo: $(BUILD_DIR)/helper.o $(BUILD_DIR)/server.o $(SERVER_SRC)
 	ar rcs $(BUILD_DIR)/libseobeo.a $^

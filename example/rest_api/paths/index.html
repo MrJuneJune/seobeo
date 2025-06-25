@@ -1,657 +1,512 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Seobeo - Lightweight C Server</title>
-  <!-- Preload stuff -->
-  <link rel="preload" as="image" href="/seobeo.png">
-  <link rel="preload" as="image" href="/shiba_open.png">
-  <link rel="preload" as="image" href="/shiba_close.png">
-  <link rel="icon" type="image/svg" href="/epi_favicon.svg">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>API Request Tester</title>
   <style>
-    :root {
-      --navy: #1a2a3a;
-      --light-blue: #e5eef5;
-      --accent-blue: #4a7bab;
-      --accent-yellow: #f9d56e;
-      --white: #ffffff;
-    }
-
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
     body {
-      background-color: var(--light-blue);
-      color: var(--navy);
-      line-height: 1.6;
-    }
-
-    header {
-      background-color: var(--white);
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-      padding: 1rem 0;
-      position: fixed;
-      width: 100%;
-      top: 0;
-      z-index: 100;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
     }
 
     .container {
       max-width: 1200px;
       margin: 0 auto;
-      padding: 0 2rem;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
     }
 
-    .links {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      width: 30%;
-    }
-
-    .nav {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .logo img {
-      height: 50px;
-      width: 50px;
-    }
-
-    .logo h1 {
-      font-size: 1.8rem;
-      font-weight: 600;
-      color: var(--navy);
-    }
-
-    .nav-links {
-      display: flex;
-      gap: 2rem;
-    }
-
-    .nav-links a {
-      text-decoration: none;
-      color: var(--navy);
-      font-weight: 500;
-      transition: color 0.3s;
-    }
-
-    .nav-links a:hover {
-      color: var(--accent-blue);
-    }
-
-    .hero {
-      margin-top: 100px;
-      padding: 5rem 0;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .hero-content {
-      flex: 1;
-    }
-
-    .hero-image {
-      flex: 1;
-      display: flex;
-      justify-content: center;
-    }
-
-    .hero-image img {
-      max-width: 100%;
-      height: auto;
-    }
-
-    h2 {
-      font-size: 3rem;
-      margin-bottom: 1.5rem;
-      color: var(--navy);
-    }
-
-    .subtitle {
-      font-size: 1.2rem;
-      margin-bottom: 2rem;
-      color: var(--accent-blue);
-    }
-
-    @media screen and (max-width: 768px) {
-      .hero {
-        flex-direction: column;
-        text-align: center;
-      }
-
-      .hero-content, .hero-image {
-        flex: none;
-        width: 100%;
-      }
-
-      .hero-image {
-        margin-top: 2rem;
-      }
-
-      .nav-links {
-        display: none;
-      }
-    }
-
-    .game-container {
-      position: relative;
-      width: 800px;
-      height: 300px;
-      margin-top: 20px;
-    }
-
-    canvas {
-      border: 2px solid #1a2a3a;
-      background-color: #fff;
-    }
-
-    .game-ui {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      color: #1a2a3a;
-      font-size: 18px;
-      font-weight: bold;
-    }
-
-    .start-screen {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      background-color: rgba(255, 255, 255, 0.8);
-    }
-
-    .start-screen h1 {
-      font-size: 32px;
-      color: #1a2a3a;
-      margin-bottom: 20px;
-    }
-
-    .start-screen p {
-      font-size: 18px;
-      color: #4a7bab;
-      margin-bottom: 30px;
+    .header {
+      background: linear-gradient(45deg, #2c3e50, #3498db);
+      color: white;
+      padding: 2rem;
       text-align: center;
     }
 
-    .start-btn {
-      padding: 10px 30px;
-      background-color: #4a7bab;
-      color: white;
+    .header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 1.1rem;
+    }
+
+    .main-content {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: 2rem;
+      padding: 2rem;
+    }
+
+    .form-section {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .form-section h2 {
+      color: #2c3e50;
+      margin-bottom: 1.5rem;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1rem;
+    }
+
+    .field-group {
+      margin-bottom: 1rem;
+    }
+
+    .field-group label {
+      display: block;
+      color: #34495e;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .field-group input,
+    .field-group textarea {
+      width: 100%;
+      padding: 0.75rem;
+      border: 2px solid #e1e8ed;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      transition: all 0.3s ease;
+      background: #fafbfc;
+    }
+
+    .field-group input:focus,
+    .field-group textarea:focus {
+      outline: none;
+      border-color: #3498db;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    .field-group textarea {
+      resize: vertical;
+      min-height: 80px;
+      font-family: 'Monaco', 'Menlo', monospace;
+    }
+
+    .checkbox-field {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .checkbox-field input[type="checkbox"] {
+      width: auto;
+      transform: scale(1.2);
+    }
+
+    .controls-section {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      height: fit-content;
+    }
+
+    .controls-section h2 {
+      color: #2c3e50;
+      margin-bottom: 1.5rem;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .button-group {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .api-button {
+      padding: 0.875rem 1.5rem;
       border: none;
-      border-radius: 5px;
-      font-size: 18px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.95rem;
       cursor: pointer;
-      transition: background-color 0.3s;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
     }
 
-    .start-btn:hover {
-      background-color: #1a2a3a;
+    .api-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
     }
 
-    .hidden {
-      display: none;
+    .api-button:active {
+      transform: translateY(0);
     }
 
+    .btn-get {
+      background: linear-gradient(45deg, #27ae60, #2ecc71);
+      color: white;
+    }
+
+    .btn-post {
+      background: linear-gradient(45deg, #3498db, #5dade2);
+      color: white;
+    }
+
+    .btn-put {
+      background: linear-gradient(45deg, #f39c12, #f1c40f);
+      color: white;
+    }
+
+    .btn-delete {
+      background: linear-gradient(45deg, #e74c3c, #ec7063);
+      color: white;
+    }
+
+    .response-section {
+      grid-column: span 2;
+      background: #2c3e50;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-top: 1rem;
+    }
+
+    .response-section h3 {
+      color: #ecf0f1;
+      margin-bottom: 1rem;
+      font-size: 1.25rem;
+    }
+
+    .response-content {
+      background: #34495e;
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 0.85rem;
+      color: #ecf0f1;
+      white-space: pre-wrap;
+      overflow-x: auto;
+      min-height: 100px;
+      border: 1px solid #4a6741;
+    }
+
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .status-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+
+    .status-success { background: #27ae60; }
+    .status-error { background: #e74c3c; }
+    .status-pending { background: #f39c12; }
+
+    @media (max-width: 768px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+      
+      .response-section {
+        grid-column: span 1;
+      }
+      
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .header h1 {
+        font-size: 2rem;
+      }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <div class="container">
-      <nav class="nav">
-        <div class="logo">
-          <img class="logo-image" src="/seobeo.png" alt="Seobeo Logo">
-          <h1>Seobeo</h1>
-        </div>
-        <div class="links">
-          <div class="nav-links">
-            <a href="/example-api.html">API Example</a>
-          </div>
-          <div class="nav-links">
-            <a href="https://github.com/seobeo" target="_blank">GitHub</a>
-          </div>
-        </div>
-      </nav>
+  <div class="container">
+    <div class="header">
+      <h1>API Request Tester</h1>
+      <p>Professional tool for testing REST API endpoints</p>
     </div>
-  </header>
 
-  <main>
-    <section class="hero">
-      <div class="container">
-        <div class="hero-content">
-          <h2>Lightweight C Server</h2>
-          <p class="subtitle">For Simple mind minions</p>
-          <p>Seobeo is a minimal footprint C server built for simplicity.</p>
-          <p>Here is a dumb game that AI made and I had to fix some bugs on it. I don't know what else to add for now.</p>
-        </div>
-        <div class="game-container">
-          <canvas id="gameCanvas" width="800" height="300"></canvas>
-          <div class="game-ui">
-            <div id="score">Score: 0</div>
-            <div id="highScore">High Score: 0</div>
+    <div class="main-content">
+      <div class="form-section">
+        <h2>Request Parameters</h2>
+        <form id="exampleForm">
+          <div class="form-grid">
+            <div class="field-group">
+              <label for="id">ID (UUID)</label>
+              <input id="id" name="id" value="b6d4c431-f327-4a4a-9345-320aa3cd7e31" />
+            </div>
+            
+            <div class="field-group">
+              <label for="small_int_col">Small Integer</label>
+              <input id="small_int_col" name="small_int_col" type="number" value="1" />
+            </div>
+            
+            <div class="field-group">
+              <label for="int_col">Integer</label>
+              <input id="int_col" name="int_col" type="number" value="42" />
+            </div>
+            
+            <div class="field-group">
+              <label for="big_int_col">Big Integer</label>
+              <input id="big_int_col" name="big_int_col" type="number" value="9000000000" />
+            </div>
+            
+            <div class="field-group">
+              <label for="decimal_col">Decimal</label>
+              <input id="decimal_col" name="decimal_col" type="number" step="any" value="12.34" />
+            </div>
+            
+            <div class="field-group">
+              <label for="numeric_col">Numeric</label>
+              <input id="numeric_col" name="numeric_col" type="number" step="any" value="56.789" />
+            </div>
+            
+            <div class="field-group">
+              <label for="real_col">Real</label>
+              <input id="real_col" name="real_col" type="number" step="any" value="1.23" />
+            </div>
+            
+            <div class="field-group">
+              <label for="double_col">Double</label>
+              <input id="double_col" name="double_col" type="number" step="any" value="9.87" />
+            </div>
+            
+            <div class="field-group">
+              <label for="char_col">Character</label>
+              <input id="char_col" name="char_col" value="char_data" />
+            </div>
+            
+            <div class="field-group">
+              <label for="varchar_col">Varchar</label>
+              <input id="varchar_col" name="varchar_col" value="varchar_data" />
+            </div>
+            
+            <div class="field-group">
+              <label for="text_col">Text</label>
+              <input id="text_col" name="text_col" value="This is a long text" />
+            </div>
+            
+            <div class="field-group">
+              <label for="date_col">Date</label>
+              <input id="date_col" name="date_col" type="date" value="2025-06-05" />
+            </div>
+            
+            <div class="field-group">
+              <label for="time_col">Time</label>
+              <input id="time_col" name="time_col" type="time" value="12:34:56" />
+            </div>
+            
+            <div class="field-group">
+              <label for="timestamp_col">Timestamp</label>
+              <input id="timestamp_col" name="timestamp_col" value="2025-06-05 12:34:56" />
+            </div>
+            
+            <div class="field-group">
+              <label for="timestamptz_col">Timestamp with Timezone</label>
+              <input id="timestamptz_col" name="timestamptz_col" value="2025-06-05 12:34:56+00" />
+            </div>
+            
+            <div class="field-group checkbox-field">
+              <input id="boolean_col" name="boolean_col" type="checkbox" checked />
+              <label for="boolean_col">Boolean</label>
+            </div>
+            
+            <div class="field-group">
+              <label for="another_uuid">Another UUID</label>
+              <input id="another_uuid" name="another_uuid" value="d1b355c0-f348-4bcf-b3df-ef95b3a8a3ad" />
+            </div>
+            
+            <div class="field-group">
+              <label for="int_array_col">Integer Array (comma-separated)</label>
+              <input id="int_array_col" name="int_array_col" value="1,2,3" />
+            </div>
+            
+            <div class="field-group">
+              <label for="text_array_col">Text Array (comma-separated)</label>
+              <input id="text_array_col" name="text_array_col" value="apple,banana" />
+            </div>
+            
+            <div class="field-group">
+              <label for="status_col">Status</label>
+              <input id="status_col" name="status_col" value="active" />
+            </div>
+            
+            <div class="field-group">
+              <label for="file_col">File (hex)</label>
+              <input id="file_col" name="file_col" value="\\x68656c6c6f" />
+            </div>
           </div>
-          <div id="startScreen" class="start-screen">
-            <h1>Seobeo Runner</h1>
-            <p>Press SPACE or tap to jump.<br>Avoid servers and collect coins!</p>
-            <button id="startButton" class="start-btn">Start Game</button>
+          
+          <div class="form-grid">
+            <div class="field-group">
+              <label for="json_col">JSON Column</label>
+              <textarea id="json_col" name="json_col">{ "key": "value" }</textarea>
+            </div>
+            
+            <div class="field-group">
+              <label for="jsonb_col">JSONB Column</label>
+              <textarea id="jsonb_col" name="jsonb_col">{ "key": "value" }</textarea>
+            </div>
           </div>
+        </form>
+      </div>
+
+      <div class="controls-section">
+        <h2>API Actions</h2>
+        <div class="button-group">
+          <button class="api-button btn-get" onclick="makeGetRequest()">
+            GET /api/foo
+          </button>
+          <button class="api-button btn-post" onclick="makePostRequest()">
+            POST /api/foo
+          </button>
+          <button class="api-button btn-put" onclick="makePutRequest()">
+            PUT /api/foo
+          </button>
+          <button class="api-button btn-delete" onclick="makeDeleteRequest()">
+            DELETE /api/foo
+          </button>
         </div>
       </div>
-    </section>
-  </main>
+
+      <div class="response-section">
+        <h3>Response</h3>
+        <div id="response" class="response-content">Click any button above to make an API request...</div>
+      </div>
+    </div>
+  </div>
 
   <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const scoreDisplay = document.getElementById('score');
-    const highScoreDisplay = document.getElementById('highScore');
-    const startScreen = document.getElementById('startScreen');
-    const startButton = document.getElementById('startButton');
+    const baseUrl = 'http://localhost:6969/api/foo';
 
-    // Game variables
-    let score = 0;
-    let highScore = 0;
-    let gameSpeed = 5;
-    let gameOver = false;
-    let playing = false;
-    let jumpPressed = false;
+    function getFormData() {
+      const form = document.getElementById('exampleForm');
+      const formData = new FormData(form);
+      const json = {};
 
-    // Load high score from local storage
-    if (localStorage.getItem('seobeoHighScore')) {
-      highScore = parseInt(localStorage.getItem('seobeoHighScore'));
-      highScoreDisplay.textContent = `High Score: ${highScore}`;
-    }
-
-    class Player {
-
-      constructor() {
-        this.x = 50;
-        this.y = 230;
-        this.width = 50;
-        this.height = 50;
-        this.jumping = false;
-        this.jumpForce = 15;
-        this.gravity = 0.5;
-        this.velocityY = 0;
-        this.jumpCount = 0;
-        this.maxJumps = 1;
-        this.shibaOpen = new Image();
-        this.shibaClose = new Image();
-
-        this.shibaOpen.src = '/shiba_open.png';
-        this.shibaClose.src = '/shiba_close.png';
-      }
-
-      
-      draw() {
-        if (this.jumping) {
-          ctx.drawImage(this.shibaClose, this.x, this.y, this.width, this.height);
-        } else {
-          ctx.drawImage(this.shibaOpen, this.x, this.y, this.width, this.height);
-        }
-      }
-      
-      update() {
-        if (this.jumping) {
-          this.velocityY += this.gravity;
-          this.y += this.velocityY;
-          
-          // Check if landed
-          if (this.y >= 230) {
-            this.y = 230;
-            this.jumping = false;
-            this.velocityY = 0;
-            this.jumpCount = 0;
-          }
-        }
-      }
-      
-      jump() {
-        if (this.jumpCount < this.maxJumps) {
-          this.jumping = true;
-          this.velocityY = -this.jumpForce;
-          this.jumpCount++;
-        }
-      }
-      
-      reset() {
-        this.y = 230;
-        this.jumping = false;
-        this.velocityY = 0;
-        this.jumpCount = 0;
-      }
-    };
-
-    const player = new Player();
-
-    class Obstacle {
-      constructor(type = 'server') {
-        this.x = canvas.width;
-        this.width = type === 'server' ? 40 : 20;
-        this.height = type === 'server' ? 60 : 20;
-        this.y = type === 'server' ? canvas.height - this.height - 20 : Math.random() * 100 + 50;
-        this.type = type; // 'server' or 'coin'
-        this.collected = false;
-      }
-      
-      draw() {
-        if (this.type === 'server') {
-          // Draw server rack
-          ctx.fillStyle = '#8c9daa';
-          ctx.strokeStyle = '#1a2a3a';
-          ctx.lineWidth = 2;
-          
-          // Main body
-          ctx.fillRect(this.x, this.y, this.width, this.height);
-          ctx.strokeRect(this.x, this.y, this.width, this.height);
-          
-          // Server details
-          ctx.fillStyle = '#1a2a3a';
-          // Lines
-          ctx.fillRect(this.x + 5, this.y + 10, 30, 2);
-          ctx.fillRect(this.x + 5, this.y + 20, 30, 2);
-          ctx.fillRect(this.x + 5, this.y + 30, 30, 2);
-          
-          // LED lights
-          ctx.fillStyle = '#f9d56e';
-          ctx.beginPath();
-          ctx.arc(this.x + 30, this.y + 5, 2, 0, Math.PI * 2);
-          ctx.fill();
-          
-          ctx.fillStyle = '#4fff4f';
-          ctx.beginPath();
-          ctx.arc(this.x + 30, this.y + 5 + 8, 2, 0, Math.PI * 2);
-          ctx.fill();
-        } else if (this.type === 'coin' && !this.collected) {
-          // Draw coin
-          ctx.fillStyle = '#f9d56e';
-          ctx.strokeStyle = '#cd7f32';
-          ctx.lineWidth = 2;
-          
-          ctx.beginPath();
-          ctx.arc(this.x + 10, this.y + 10, 10, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-          
-          // Coin highlight
-          ctx.fillStyle = '#fff8d4';
-          ctx.beginPath();
-          ctx.arc(this.x + 7, this.y + 7, 3, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-      
-      update() {
-        this.x -= gameSpeed;
-      }
-    }
-
-    const ground = {
-      y: canvas.height - 20,
-      draw() {
-        ctx.fillStyle = '#d0d0d0';
-        ctx.fillRect(0, this.y, canvas.width, 20);
-        
-        // Add some ground details
-        ctx.fillStyle = '#a0a0a0';
-        for (let i = 0; i < canvas.width; i += 50) {
-          ctx.fillRect(i, this.y + 5, 20, 2);
-          ctx.fillRect(i + 30, this.y + 12, 15, 2);
-        }
-      }
-    };
-
-    class Cloud {
-      constructor() {
-        this.x = canvas.width;
-        this.y = Math.random() * 100 + 10;
-        this.width = Math.random() * 60 + 40;
-        this.height = this.width * 0.6;
-        this.speed = gameSpeed * 0.4;
-        this.image = new Image();
-        this.image.src = '/cloud.png'; 
-      }
-      
-      draw() {
-        ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
-       }
-      
-      update() {
-        this.x -= this.speed;
-      }
-    }
-
-    // Game objects
-    let obstacles = [];
-    let clouds = [];
-    let frames = 0;
-    let spawnRate = 120; // Controls how often obstacles spawn
-    let coinSpawnChance = 0.2; // 20% chance to spawn a coin
-
-    // Spawn objects
-    function spawnObstacle() {
-      // Decide if this obstacle is a server or a coin
-      const type = Math.random() < coinSpawnChance ? 'coin' : 'server';
-      obstacles.push(new Obstacle(type));
-    }
-
-    function spawnCloud() {
-      clouds.push(new Cloud());
-    }
-
-    // Check for collisions
-    function checkCollisions() {
-      for (let i = 0; i < obstacles.length; i++) {
-        const o = obstacles[i];
-        
-        // Skip collected coins
-        if (o.type === 'coin' && o.collected) continue;
-        
-        // Check for collision with player
-        if (
-          player.x < o.x + o.width &&
-          player.x + player.width > o.x &&
-          player.y < o.y + o.height &&
-          player.y + player.height > o.y
-        ) {
-          if (o.type === 'server') {
-            // Collision with server - game over
-            gameOver = true;
-            playing = false;
-            
-            // Update high score if needed
-            if (score > highScore) {
-              highScore = score;
-              localStorage.setItem('seobeoHighScore', highScore);
-              highScoreDisplay.textContent = `High Score: ${highScore}`;
+      for (const [key, value] of formData.entries()) {
+        switch (key) {
+          case 'small_int_col':
+          case 'int_col':
+          case 'big_int_col':
+            json[key] = parseInt(value);
+            break;
+          case 'decimal_col':
+          case 'numeric_col':
+          case 'real_col':
+          case 'double_col':
+            json[key] = parseFloat(value);
+            break;
+          case 'boolean_col':
+            json[key] = form.elements['boolean_col'].checked;
+            break;
+          case 'int_array_col':
+            json[key] = value.split(',').map(s => parseInt(s.trim()));
+            break;
+          case 'text_array_col':
+            json[key] = value.split(',').map(s => s.trim());
+            break;
+          case 'json_col':
+          case 'jsonb_col':
+            try {
+              json[key] = JSON.parse(value);
+            } catch {
+              json[key] = {}; // fallback
             }
-            
-            // Show start screen with game over message
-            startScreen.querySelector('h1').textContent = 'Game Over!';
-            startScreen.querySelector('p').textContent = `Your score: ${score}`;
-            startScreen.querySelector('button').textContent = 'Play Again';
-            startScreen.classList.remove('hidden');
-          } else if (o.type === 'coin' && !o.collected) {
-            // Collected a coin
-            o.collected = true;
-            score += 50;
-            scoreDisplay.textContent = `Score: ${score}`;
-          }
+            break;
+          default:
+            json[key] = value;
         }
       }
+
+      return json;
     }
 
-    // Main game functions
-    function update() {
-      frames++;
+    function setLoading(method) {
+      const responseEl = document.getElementById('response');
+      responseEl.innerHTML = `<span class="status-indicator status-pending"></span>Making ${method} request...\n<div class="loading"></div>`;
+    }
+
+    function handleResponse(responsePromise, method) {
+      setLoading(method);
       
-      // Increase game speed over time
-      if (frames % 1000 === 0) {
-        gameSpeed += 0.5;
-      }
-      
-      // Spawn obstacles
-      if (frames % spawnRate === 0) {
-        spawnObstacle();
-        
-        // Gradually decrease spawn rate (make game harder)
-        if (spawnRate > 60) {
-          spawnRate--;
-        }
-      }
-      
-      // Spawn clouds occasionally
-      if (frames % 200 === 0) {
-        spawnCloud();
-      }
-      
-      player.update();
-      
-      // Update obstacles and remove ones that are off-screen
-      for (let i = obstacles.length - 1; i >= 0; i--) {
-        obstacles[i].update();
-        
-        // Remove obstacles that have moved off screen
-        if (obstacles[i].x + obstacles[i].width < 0) {
-          obstacles.splice(i, 1);
+      responsePromise
+        .then(async response => {
+          const data = await response.json();
+          const statusClass = response.ok ? 'status-success' : 'status-error';
+          const statusText = response.ok ? 'Success' : 'Error';
           
-          // Add score for avoiding servers
-          if (!gameOver && obstacles[i] && obstacles[i].type === 'server') {
-            score += 10;
-            scoreDisplay.textContent = `Score: ${score}`;
-          }
-        }
-      }
-      
-      // Update clouds and remove ones that are off-screen
-      for (let i = clouds.length - 1; i >= 0; i--) {
-        clouds[i].update();
-        
-        if (clouds[i].x + clouds[i].width < 0) {
-          clouds.splice(i, 1);
-        }
-      }
-      
-      // Check for collisions
-      checkCollisions();
+          document.getElementById('response').innerHTML = 
+            `<span class="status-indicator ${statusClass}"></span>${method} ${statusText} (${response.status})\n\n` +
+            JSON.stringify(data, null, 2);
+        })
+        .catch(error => {
+          document.getElementById('response').innerHTML = 
+            `<span class="status-indicator status-error"></span>Network Error\n\n${error.message}`;
+        });
     }
 
-    function draw() {
-      // Clear canvas
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      // Draw clouds
-      clouds.forEach(cloud => cloud.draw());
-      
-      // Draw ground
-      ground.draw();
-      
-      // Draw player
-      player.draw();
-      
-      // Draw obstacles
-      obstacles.forEach(obstacle => obstacle.draw());
+    function makeGetRequest() {
+      const formData = getFormData();
+      handleResponse(fetch(baseUrl + '/' + formData.id, { method: 'GET' }), 'GET');
     }
 
-    // Game loop
-    function gameLoop() {
-      if (playing) {
-        update();
-        draw();
-        
-        // Continue the game loop
-        requestAnimationFrame(gameLoop);
-      }
+    function makePostRequest() {
+      const body = getFormData();
+      handleResponse(fetch(baseUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }), 'POST');
     }
 
-    // Start the game
-    function startGame() {
-      // Reset game state
-      gameOver = false;
-      playing = true;
-      score = 0;
-      gameSpeed = 4;
-      frames = 0;
-      spawnRate = 120;
-      obstacles = [];
-      clouds = [];
-      player.reset();
-      
-      // Update UI
-      scoreDisplay.textContent = `Score: ${score}`;
-      startScreen.classList.add('hidden');
-      
-      // Add some initial clouds
-      for (let i = 0; i < 3; i++) {
-        const cloud = new Cloud();
-        cloud.x = Math.random() * canvas.width;
-        clouds.push(cloud);
-      }
-      
-      // Start game loop
-      gameLoop();
+    function makePutRequest() {
+      const body = getFormData();
+      handleResponse(fetch(baseUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }), 'PUT');
     }
 
-    // Event listeners
-    startButton.addEventListener('click', startGame);
-
-    // Jump controls
-    document.addEventListener('keydown', function(e) {
-      if ((e.code === 'Space' || e.code === 'ArrowUp') && !jumpPressed) {
-        jumpPressed = true;
-        
-        if (playing) {
-          player.jump();
-        }
-      }
-    });
-
-    document.addEventListener('keyup', function(e) {
-      if (e.code === 'Space' || e.code === 'ArrowUp') {
-        jumpPressed = false;
-      }
-    });
-
-    // Touch controls for mobile
-    canvas.addEventListener('touchstart', function(e) {
-      e.preventDefault();
-      if (playing) {
-        player.jump();
-      }
-    });
-
-    // Click to jump
-    canvas.addEventListener('mousedown', function() {
-      if (playing) {
-        player.jump();
-      }
-    });
-
-    // Update high score display
-    highScoreDisplay.textContent = `High Score: ${highScore}`;
+    function makeDeleteRequest() {
+      handleResponse(fetch(baseUrl, { method: 'DELETE' }), 'DELETE');
+    }
   </script>
 </body>
 </html>
-
-

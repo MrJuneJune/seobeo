@@ -19,6 +19,8 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
+#include <seobeo/helper.h>
+
 // third party
 // #include <jansson.h>
 

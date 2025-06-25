@@ -159,11 +159,8 @@ void ExtractPathFromReferer(const char *string_value, char *out_path, char *out_
   regfree(&regex);
 }
 
-void ParseHttpRequest(char *buffer, HttpRequestType *request)
-{
-  // Initialize request structure
-  memset(request, 0, sizeof(HttpRequestType));
-  
+void ParseHttpRequest(char *buffer, HttpRequestType *request, Arena *request_arena)
+{  
   void *http_loop[][2] = {
     {(void*)GET_HEADER, (void*)(intptr_t)HTTP_METHOD_GET},
     {(void*)POST_HEADER, (void*)(intptr_t)HTTP_METHOD_POST},
@@ -213,7 +210,7 @@ void ParseHttpRequest(char *buffer, HttpRequestType *request)
     request->content_length > 0
   )
   {
-    request->body = malloc(request->content_length + 4);
+    request->body = ArenaAlloc(request_arena, request->content_length + 4);
     if (!request->body)
     {
       WriteToLogs("[Error] Failed to allocate memory for request body");
@@ -230,8 +227,6 @@ void ParseHttpRequest(char *buffer, HttpRequestType *request)
     }
     else
     {
-      // No body found, free the allocated memory
-      free(request->body);
       request->body = NULL;
       request->content_length = 0;
     }
@@ -432,6 +427,8 @@ void ServeStaticFileFallback(int client_fd, HttpRequestType *request)
 
 void HandleRoutes(int client_fd, HttpRequestType *request, Route *routes, size_t route_count)
 {
+  // Checks for API first
+  // TODO: Maybe make a simple route check so we don't need to do both?.
   for (size_t i = 0; i < route_count; i++)
   {
     if (routes[i].method != request->method) continue;
@@ -444,6 +441,7 @@ void HandleRoutes(int client_fd, HttpRequestType *request, Route *routes, size_t
     }
   }
 
+  // If it is GET, we static file fallback.
   if (request->method == HTTP_METHOD_GET)
   {
     ServeStaticFileFallback(client_fd, request);
@@ -463,6 +461,8 @@ void HandleRequest(int client_fd)
   
   char header_buffer[BUFFER_SIZE];
   ssize_t total_bytes = 0;
+
+  Arena *request_arena = ArenaCreate(REQUEST_ARENA_SIZE);
 
   while (1)
   {
@@ -499,27 +499,23 @@ void HandleRequest(int client_fd)
   // Null terminate the buffer
   header_buffer[total_bytes] = '\0';
 
-  HttpRequestType request = {0};
-  ParseHttpRequest(header_buffer, &request);
+  HttpRequestType *request = ArenaAlloc(request_arena, sizeof(HttpRequestType));
+  if (request) *request = (HttpRequestType){0};
+  ParseHttpRequest(header_buffer, request, request_arena);
 
   // Basic guard statements for requests.
-  if (SanitizePaths(request.path) != 0)
+  if (SanitizePaths((*request).path) != 0)
   {
     SendHTTPErrorResponse(client_fd, HTTP_FORBIDDEN);
     CleanupClient(client_fd);
     goto cleanup;
   }
 
-  WriteRequestLog(request);
-  HandleRoutes(client_fd, &request, ROUTE, ROUTE_SIZE);
+  WriteRequestLog(*request);
+  HandleRoutes(client_fd, request, ROUTE, ROUTE_SIZE);
 
 cleanup:
-  // Free request body if allocated
-  if (request.body)
-  {
-    free(request.body);
-  }
-  
+  ArenaDestroy(request_arena);
   // Log timing
   gettimeofday(&end, NULL);
   long diff = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) / 1000;

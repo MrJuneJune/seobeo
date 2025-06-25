@@ -34,6 +34,7 @@
 #define MAX_PATH_PARAMS 4
 #define MAX_KEY_LEN 64
 #define MAX_VALUE_LEN 256
+#define REQUEST_ARENA_SIZE 32768 // 32kb
 
 // HTTP STATUS CODE
 #define HTTP_OK 200
@@ -72,6 +73,7 @@ typedef struct {
 
 typedef struct {
   int method;
+  HashMap *headers;
   char path[MAX_PATH_LEN];
   char *body;
   int content_length; 
@@ -101,7 +103,7 @@ void BindToSocket(int *server_fd, struct sockaddr_in *server_addr);
 void ListenToSocket(int *server_fd);
 
 // Request Related
-void ParseHttpRequest(char *buffer, HttpRequestType *request);
+void ParseHttpRequest(char *buffer, HttpRequestType *request, Arena *request_arena);
 void ExtractPathFromReferer(const char *string_value, char *out_path, char *out_query); 
 int  SanitizePaths(char *path);
 void HandleRoutes(int client_fd, HttpRequestType *request, Route *routes, size_t route_count);

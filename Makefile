@@ -25,7 +25,7 @@ endif
 
 # Examples
 #
-rest_api_example: example/rest_api/main.c auto_generate seobeo | $(BIN_DIR)
+rest_api_example: install_third_party example/rest_api/main.c auto_generate seobeo | $(BIN_DIR)
 	$(CC) example/rest_api/main.c $(MODEL_SRCS) $(REST_API_CFLAGS) -o $(BIN_DIR)/rest_api_server && \
 	cd example/rest_api && ../../$(BIN_DIR)/rest_api_server
 
@@ -54,7 +54,7 @@ $(BUILD_DIR)/helper.o: $(SRC_DIR)/helper.c | $(BUILD_DIR)
 	$(CC) -c $< -o $@ -Iinclude
 
 # These are needed for the rest example
-install_third_party: $(INSTALL_THIRD_PARTY_SRC)
+install_third_party: delete_third_party $(INSTALL_THIRD_PARTY_SRC)
 	@if [ -d $(THIRD_PARTY_INCLUDE_DIR)/postgresql ] && [ -d  $(THIRD_PARTY_INCLUDE_DIR) ]; then \
 		echo "Third party libs are already installed."; \
 	else \
@@ -77,8 +77,9 @@ install_third_party_mac: prepare_dirs
 	fi
 	cd pog_pool && make release 
 	@echo "Copying pog_pool headers and libs to third_party..."
-	cp -r pog_pool/dist/include/* $(THIRD_PARTY_INCLUDE_DIR)/
+	cp -r pog_pool/dist/include/* $(THIRD_PARTY_INCLUDE_DIR)/pog_pool
 	cp -r pog_pool/dist/libpog_pool.a $(THIRD_PARTY_LIB_DIR)/
+	rm -rf pog_pool
 	@echo "Copying libpq headers and libs to third_party..."
 	cp -r /opt/homebrew/opt/libpq/include/* $(THIRD_PARTY_INCLUDE_DIR)/postgresql/
 	cp -r /opt/homebrew/opt/libpq/lib/* $(THIRD_PARTY_LIB_DIR)/
@@ -105,7 +106,12 @@ install_third_party_linux: prepare_dirs
 
 prepare_dirs:
 	mkdir -p $(THIRD_PARTY_INCLUDE_DIR)/postgresql
+	mkdir -p $(THIRD_PARTY_INCLUDE_DIR)/pog_pool
 	mkdir -p $(THIRD_PARTY_LIB_DIR)
+
+# Need to do this due to ownership issues
+delete_third_party:
+	rm -rf $(THIRD_PARTY_PREFIX)
 
 $(BIN_DIR):
 	mkdir -p $(BIN_DIR)

@@ -292,7 +292,7 @@ int MatchRoute(const char *pattern, const char *path, HttpRequestType *req)
   return *pattern_ptr == '\0' && *path_ptr == '\0';
 }
 
-int send_all(int sockfd, const void *buf, size_t len)
+int SendAll(int sockfd, const void *buf, size_t len)
 {
   const char *p = buf;
   size_t total_sent = 0;
@@ -356,7 +356,6 @@ void ServeStaticFileFallback(int client_fd, HttpRequestType *request)
     return; // No match, don't serve anything
   }
 
-  // Check file existence and get size
   struct stat st;
   if (stat(file_path, &st) != 0)
   {
@@ -391,7 +390,7 @@ void ServeStaticFileFallback(int client_fd, HttpRequestType *request)
   char response_header_buffer[BUFFER_SIZE];
   GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, file_size);
   
-  if (!send_all(client_fd, response_header_buffer, strlen(response_header_buffer)))
+  if (!SendAll(client_fd, response_header_buffer, strlen(response_header_buffer)))
   {
     WriteToLogs("[Error]⚠️ Failed to send headers\n");
     fclose(file);
@@ -405,7 +404,7 @@ void ServeStaticFileFallback(int client_fd, HttpRequestType *request)
 
   while ((bytes_read = fread(response_body_buffer, 1, STATIC_FILE_BUFFER, file)) > 0)
   {
-    if (!send_all(client_fd, response_body_buffer, bytes_read))
+    if (!SendAll(client_fd, response_body_buffer, bytes_read))
     {
       WriteToLogs("[Error]⚠️ Failed to send file data at byte %zu\n", total_bytes_sent);
       fclose(file);
@@ -587,3 +586,30 @@ void WriteToLogs(const char *restrict format, ...)
     fclose(file);
   }
 }
+
+
+void CreateHTTPResponse(int client_fd, char *response, const char *content_type, char *response_header_buffer)
+{
+  size_t total_size = strlen(response);
+  size_t bytes_sent = 0;
+
+  GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, total_size);
+  send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
+
+  while (total_size > 0)
+  {
+    size_t chunk_size = total_size > STATIC_FILE_BUFFER ? STATIC_FILE_BUFFER : total_size;
+    memcpy(response_header_buffer, response + bytes_sent, chunk_size);
+
+    if (!SendAll(client_fd, response_header_buffer, chunk_size))
+    {
+      WriteToLogs("[Error]⚠️ Failed to send file data at byte %zu\n", bytes_sent);
+      return;
+    }
+
+    bytes_sent += chunk_size;
+    total_size -= chunk_size;
+  }
+}
+
+

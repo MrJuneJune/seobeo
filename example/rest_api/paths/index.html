@@ -505,7 +505,8 @@
     }
 
     function makeDeleteRequest() {
-      handleResponse(fetch(baseUrl, { method: 'DELETE' }), 'DELETE');
+      const formData = getFormData();
+      handleResponse(fetch(baseUrl + '/' + formData.id, { method: 'DELETE' }), 'DELETE');
     }
   </script>
 </body>

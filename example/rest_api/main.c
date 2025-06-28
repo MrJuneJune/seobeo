@@ -3,6 +3,7 @@
 #include <seobeo/server.h>
 #include <seobeo/os.h>
 #include "pog_pool/connection.h"
+#include "pog_pool/auto_generate.h"
 #include "build/models.h"
 #include <jansson.h>
 
@@ -37,7 +38,8 @@ void handleGetExampleTable(int client_fd, HttpRequestType *request)
   ExampleTableQuery etq = QueryExampleTable(pg_conn, "*",where_clause);
   if (etq.ExampleTable != NULL)
   {
-    sprintf(response, SerializeExampleTable(*etq.ExampleTable));
+    char *json = SerializeExampleTable(*etq.ExampleTable);
+    sprintf(response, json);
   }
   else
   {
@@ -49,9 +51,69 @@ void handleGetExampleTable(int client_fd, HttpRequestType *request)
   ReleaseConnection(connection_pool, pg_conn) ;
   FreeExampleTableQuery(&etq);
 
-  GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, strlen(response));
-  send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
-  send(client_fd,  response, strlen(response), 0);
+  CreateHTTPResponse(client_fd, response, content_type, response_header_buffer);
+  return;
+}
+
+void handleGetExampleTableHTML(int client_fd, HttpRequestType *request)
+{
+  char response_header_buffer[BUFFER_SIZE];
+  const char *content_type = "text/html; charset=utf-8";
+  char response[BUFFER_SIZE];
+  char file_path[BUFFER_SIZE];
+  char *file_buffers = malloc(sizeof(char)*100000);
+
+  snprintf(file_path, sizeof(file_path), "paths/index.seobeo");
+  FILE *file = fopen(file_path, "rb");
+  if (!file)
+  {
+    WriteToLogs("[Error]⚠️ Could not open %s\n", file_path);
+    SendHTTPErrorResponse(client_fd, HTTP_NOT_FOUND);
+    return;
+  }
+
+  struct stat st;
+  if (stat(file_path, &st) != 0)
+  {
+    WriteToLogs("[Error]⚠️ Could not stat %s\n", file_path);
+    SendHTTPErrorResponse(client_fd, HTTP_NOT_FOUND);
+    return;
+  }
+  size_t file_size = st.st_size;
+  fread(file_buffers, file_size, 1, file);
+
+  char where_clause[1024];
+  for (size_t i = 0; i < request->path_params_len; i++)
+  {
+    if (strcmp(request->path_params[i].key, "id") == 0)
+    {
+      const char *id = request->path_params[i].value;
+      sprintf(where_clause, "id='%s'", id);
+      WriteToLogs("Requested ID = %s", id);
+      break;
+    }
+  }
+
+  PGconn *pg_conn = BorrowConnection(connection_pool);
+  ExampleTableQuery etq = QueryExampleTable(pg_conn, "*",where_clause);
+
+  if (etq.ExampleTable != NULL)
+  {
+    ReplaceAll(&file_buffers, "{{TEXT_VALUE}}", etq.ExampleTable->text_col);
+  }
+  else 
+  {
+    // TODO: Support generic failure?
+  }
+
+
+  // clean up
+  ReleaseConnection(connection_pool, pg_conn) ;
+  FreeExampleTableQuery(&etq);
+
+  CreateHTTPResponse(client_fd, file_buffers, content_type, response_header_buffer);
+  // Free file buffer since it is no longer needed.... or maybe we do this later and store this?
+  free(file_buffers);
   return;
 }
 
@@ -68,10 +130,7 @@ void handlePostFoo(int client_fd, HttpRequestType *request)
   if (!root)
   {
     response = "{\"error\": \"Invalid JSON\"}";
-    GenerateResponseHeader(response_header_buffer, HTTP_BAD_REQUEST, content_type, strlen(response));
-    send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
-    send(client_fd,  response, strlen(response), 0);
-    return;
+    goto response;
   }
 
   ExampleTable example = {
@@ -156,11 +215,11 @@ void handlePostFoo(int client_fd, HttpRequestType *request)
   FreeExampleTableQuery(&etq);
 
   json_decref(root); // Free memory
+  goto response;
 
-  GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, strlen(response));
-  send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
-  send(client_fd,  response, strlen(response), 0);
-}
+response:
+  CreateHTTPResponse(client_fd, response, content_type, response_header_buffer);
+ }
 
 void handlePutFoo(int client_fd, HttpRequestType *request)
 {
@@ -173,10 +232,7 @@ void handlePutFoo(int client_fd, HttpRequestType *request)
   if (!root)
   {
     response = "{\"error\": \"Invalid JSON\"}";
-    GenerateResponseHeader(response_header_buffer, HTTP_BAD_REQUEST, content_type, strlen(response));
-    send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
-    send(client_fd, response, strlen(response), 0);
-    return;
+    goto response;
   }
 
   ExampleTable example = {
@@ -259,10 +315,10 @@ void handlePutFoo(int client_fd, HttpRequestType *request)
   ReleaseConnection(connection_pool, pg_conn);
   FreeExampleTableQuery(&etq);
   json_decref(root);
+  goto response;
 
-  GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, strlen(response));
-  send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
-  send(client_fd, response, strlen(response), 0);
+response:
+  CreateHTTPResponse(client_fd, response, content_type, response_header_buffer);
 }
 
 void handleDeleteFoo(int client_fd, HttpRequestType *request)
@@ -271,20 +327,18 @@ void handleDeleteFoo(int client_fd, HttpRequestType *request)
   const char *content_type = "application/json";
   char *response;
 
-  json_error_t error;
-  json_t *root = json_loads(request->body, 0, &error);
-  if (!root)
-  {
-    response = "{\"error\": \"Invalid JSON\"}";
-    GenerateResponseHeader(response_header_buffer, HTTP_BAD_REQUEST, content_type, strlen(response));
-    send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
-    send(client_fd, response, strlen(response), 0);
-    return;
-  }
-
   PGconn *pg_conn = BorrowConnection(connection_pool);
   char where_clause[1024];
-  snprintf(where_clause, strlen(where_clause), "id = \'%s\'", json_string_value(json_object_get(root, "id")));
+  for (size_t i = 0; i < request->path_params_len; i++)
+  {
+    if (strcmp(request->path_params[i].key, "id") == 0)
+    {
+      const char *id = request->path_params[i].value;
+      sprintf(where_clause, "id='%s'", id);
+      WriteToLogs("Requested ID = %s", id);
+      break;
+    }
+  }
   ExampleTableQuery etq = DeleteExampleTable(pg_conn, where_clause);
   if (etq.status==PGRES_FATAL_ERROR)
   {
@@ -297,10 +351,10 @@ void handleDeleteFoo(int client_fd, HttpRequestType *request)
 
   ReleaseConnection(connection_pool, pg_conn);
   FreeExampleTableQuery(&etq);
+  goto response;
 
-  GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, strlen(response));
-  send(client_fd, response_header_buffer, strlen(response_header_buffer), 0);
-  send(client_fd,  response, strlen(response), 0);
+response:
+  CreateHTTPResponse(client_fd, response, content_type, response_header_buffer);
 }
 
 Route ROUTE[] = {
@@ -310,13 +364,18 @@ Route ROUTE[] = {
     &handleGetExampleTable
   },
   {
+    HTTP_METHOD_GET,
+    "/foo/{id}",
+    &handleGetExampleTableHTML
+  },
+  {
     HTTP_METHOD_POST,
     "/api/foo",
     &handlePostFoo
   },
   {
     HTTP_METHOD_DELETE,
-    "/api/foo",
+    "/api/foo/{id}",
     &handleDeleteFoo
   },
   {
@@ -325,7 +384,7 @@ Route ROUTE[] = {
     &handlePutFoo
   }
 };
-size_t ROUTE_SIZE = 4;
+size_t ROUTE_SIZE = 5;
 
 char* ReadSQLFile(char* file_name)
 {

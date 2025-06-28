@@ -103,6 +103,7 @@ int SetNonBlocking(int fd);
 void CreateSocket(int *server_fd);
 void BindToSocket(int *server_fd, struct sockaddr_in *server_addr);
 void ListenToSocket(int *server_fd);
+int SendAll(int sockfd, const void *buf, size_t len);
 
 // Request Related
 void ParseHttpRequest(char *buffer, HttpRequestType *request, Arena *request_arena);
@@ -114,6 +115,7 @@ void HandleRequest(int client_fd);
 // Response Related
 void GenerateResponseHeader(char *buffer, int status, const char *content_type, const int content_length);
 void SendHTTPErrorResponse(int client_fd, int status_code);
+void CreateHTTPResponse(int client_fd, char *response, const char *content_type, char *response_header_buffer);
 
 // Loggers
 void WriteRequestLog(HttpRequestType request);

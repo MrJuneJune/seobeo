@@ -8,14 +8,23 @@ BUILD_DIR = build
 EXAMPLE_BUILD = example/build
 MODEL_SRCS := $(wildcard example/rest_api/build/model_*.c)
 
+# For rest api example, we are using libpq, pog_pool, and jansson
+THIRD_PARTY_PREFIX := $(CURDIR)/example/rest_api/third_party
+THIRD_PARTY_INCLUDE_DIR := $(THIRD_PARTY_PREFIX)/include
+THIRD_PARTY_LIB_DIR := $(THIRD_PARTY_PREFIX)/lib
+
 # Find os specific
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
 	SERVER_SRC := $(BUILD_DIR)/server_mac.o
+  INSTALL_THIRD_PARTY_SRC := install_third_party_mac
 else
 	SERVER_SRC := $(BUILD_DIR)/server_linux.o
+  INSTALL_THIRD_PARTY_SRC := install_third_party_linux
 endif
 
+# Examples
+#
 rest_api_example: example/rest_api/main.c auto_generate seobeo | $(BIN_DIR)
 	$(CC) example/rest_api/main.c $(MODEL_SRCS) $(REST_API_CFLAGS) -o $(BIN_DIR)/rest_api_server && \
 	cd example/rest_api && ../../$(BIN_DIR)/rest_api_server
@@ -43,6 +52,60 @@ $(BUILD_DIR)/server_linux.o: $(SRC_DIR)/linux/server.c | $(BUILD_DIR)
 
 $(BUILD_DIR)/helper.o: $(SRC_DIR)/helper.c | $(BUILD_DIR)
 	$(CC) -c $< -o $@ -Iinclude
+
+# These are needed for the rest example
+install_third_party: $(INSTALL_THIRD_PARTY_SRC)
+	@if [ -d $(THIRD_PARTY_INCLUDE_DIR)/postgresql ] && [ -d  $(THIRD_PARTY_INCLUDE_DIR) ]; then \
+		echo "Third party libs are already installed."; \
+	else \
+		read -p "Do you want to install postgresql via homebrew or apt? [y/N] " answer; \
+		if [ "$$answer" = "y" ] || [ "$$answer" = "Y" ]; then \
+		  $(MAKE) $(INSTALL_THIRD_PARTY_SRC); \
+		else \
+			echo "Skip installations. Please move libpq yourself."; \
+		fi \
+	fi
+
+install_third_party_mac: prepare_dirs
+	@echo "Installing libpq and jansson via Homebrew..."
+	brew install libpq jansson
+	@echo "Cloning and building pog_pool..."
+	@if [ -d pog_pool ]; then \
+		echo "Skip install pog_pool"; \
+	else \
+	  git clone https://github.com/MrJuneJune/pog_pool.git; \
+	fi
+	cd pog_pool && make release 
+	@echo "Copying pog_pool headers and libs to third_party..."
+	cp -r pog_pool/dist/include/* $(THIRD_PARTY_INCLUDE_DIR)/
+	cp -r pog_pool/dist/libpog_pool.a $(THIRD_PARTY_LIB_DIR)/
+	@echo "Copying libpq headers and libs to third_party..."
+	cp -r /opt/homebrew/opt/libpq/include/* $(THIRD_PARTY_INCLUDE_DIR)/postgresql/
+	cp -r /opt/homebrew/opt/libpq/lib/* $(THIRD_PARTY_LIB_DIR)/
+	@echo "Copying jansson headers and libs to third_party..."
+	cp -r /opt/homebrew/opt/jansson/include/* $(THIRD_PARTY_INCLUDE_DIR)/
+	cp -r /opt/homebrew/opt/jansson/lib/* $(THIRD_PARTY_LIB_DIR)/
+
+install_third_party_linux: prepare_dirs
+	@echo "Installing libpq and jansson via apt..."
+	sudo apt-get update
+	sudo apt-get install -y libpq-dev libjansson-dev
+	@echo "Cloning and building pog_pool..."
+	git clone https://github.com/MrJuneJune/pog_pool.git
+	cd pog_pool && make install
+	@echo "Copying pog_pool headers and libs to third_party..."
+	cp -r pog_pool/dist/include/* $(THIRD_PARTY_INCLUDE_DIR)/
+	cp -r pog_pool/dist/libpq.a $(THIRD_PARTY_LIB_DIR)/
+	@echo "Copying libpq headers and libs to third_party..."
+	cp -r /usr/include/postgresql/* $(THIRD_PARTY_INCLUDE_DIR)/postgresql/
+	cp -r /usr/lib/*libpq.* $(THIRD_PARTY_LIB_DIR)/
+	@echo "Copying jansson headers and libs to third_party..."
+	cp -r /usr/include/jansson.h $(THIRD_PARTY_INCLUDE_DIR)/
+	cp -r /usr/lib/*jansson.* $(THIRD_PARTY_LIB_DIR) 
+
+prepare_dirs:
+	mkdir -p $(THIRD_PARTY_INCLUDE_DIR)/postgresql
+	mkdir -p $(THIRD_PARTY_LIB_DIR)
 
 $(BIN_DIR):
 	mkdir -p $(BIN_DIR)

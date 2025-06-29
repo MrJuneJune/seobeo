@@ -649,4 +649,50 @@ void CreateHTTPResponse(int client_fd, char *response, const char *content_type,
   }
 }
 
+void InitQueue(ClientQueue *q)
+{
+    q->head = q->tail = q->count = 0;
+    pthread_mutex_init(&q->mutex, NULL);
+    pthread_cond_init(&q->not_empty, NULL);
+}
+
+void Enqueue(ClientQueue *q, int fd)
+{
+    pthread_mutex_lock(&q->mutex);
+    if (q->count == QUEUE_CAPACITY) {
+        fprintf(stderr, "Queue full, dropping client_fd %d\n", fd);
+        close(fd);
+    } else {
+        q->fds[q->tail] = fd;
+        q->tail = (q->tail + 1) % QUEUE_CAPACITY;
+        q->count++;
+        pthread_cond_signal(&q->not_empty);
+    }
+    pthread_mutex_unlock(&q->mutex);
+}
+
+int Dequeue(ClientQueue *q)
+{
+    pthread_mutex_lock(&q->mutex);
+    while (q->count == 0) {
+        pthread_cond_wait(&q->not_empty, &q->mutex);
+    }
+    int fd = q->fds[q->head];
+    q->head = (q->head + 1) % QUEUE_CAPACITY;
+    q->count--;
+    pthread_mutex_unlock(&q->mutex);
+    return fd;
+}
+
+void* WorkerThread(void* arg) {
+    ClientQueue* queue = (ClientQueue*)arg;
+
+    while (1) {
+        int fd = Dequeue(queue);
+        HandleRequest(fd);
+        close(fd);
+    }
+
+    return NULL;
+}
 

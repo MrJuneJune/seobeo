@@ -19,6 +19,8 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
+#include <pthread.h>
+
 #include <seobeo/helper.h>
 
 // third party
@@ -28,7 +30,7 @@
 #define BUFFER_SIZE 8192  // ngnix default I believe
 #define STATIC_FILE_BUFFER 1048576
 #define LOGGER_BUFFER 8192
-#define MAX_EVENTS 1000
+#define MAX_EVENTS 10000
 #define MAX_QUERY_LEN 1024
 #define MAX_PATH_LEN 1024
 #define MAX_CONTENT_TYPE_LEN 128
@@ -101,9 +103,28 @@ typedef struct {
   const char *content_type;
 } StaticFileEntry;
 
+// GPT stuff
+#define QUEUE_CAPACITY 1024
+
+typedef struct {
+    int fds[QUEUE_CAPACITY];
+    int head, tail, count;
+    pthread_mutex_t mutex;
+    pthread_cond_t not_empty;
+} ClientQueue;
+
+typedef struct {
+  int client_fd;
+  struct ClientJob *next;
+} ClientJob;
+
 // Create a separate router header and src file to handle these.
 extern Route ROUTE[];
 extern size_t ROUTE_SIZE;
+
+extern ClientJob *current_client_job;
+extern ClientJob *root_client_job;
+extern ClientQueue client_queue;
 
 // Server Related
 int SetNonBlocking(int fd);
@@ -129,5 +150,11 @@ void FreeStaticFileEntry(void *entry_ptr);
 // Loggers
 void WriteRequestLog(HttpRequestType request);
 void WriteToLogs(const char *restrict format, ...);
+
+int Dequeue(ClientQueue *q);
+void Enqueue(ClientQueue *q, int fd);
+void InitQueue(ClientQueue *q);
+void* WorkerThread(void* arg) ;
+
 
 #endif // SEOBEO_SERVER_H

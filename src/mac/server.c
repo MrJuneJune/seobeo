@@ -93,7 +93,7 @@ void RunEventLoop(const int server_fd)
       }
       else
       {
-        HandleRequest(fd);
+        Enqueue(&client_queue, fd);
       }
     }
   }

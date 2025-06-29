@@ -412,14 +412,17 @@ char* ReadSQLFile(char* file_name)
 // --- main server loop ---
 int main()
 {
+  int server_fd;
+  struct sockaddr_in server_addr;
+
   // Assign 8mb for caching static files.
   static_file = CreateHashMap(
     8388608,
     FreeStaticFileEntry     
   );
 
-  int server_fd;
-  struct sockaddr_in server_addr;
+  current_client_job = malloc(sizeof(ClientJob));
+  root_client_job = current_client_job;
 
   // DB manager
   ConnectionPool connection_pool_real={0};

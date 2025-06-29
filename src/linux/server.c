@@ -108,9 +108,7 @@ void RunEventLoop(const int server_fd)
       }
       else
       {
-        // If it is client, then handle the request.
-        // Note: CleanupClient will remove from epoll and close the fd
-        HandleRequest(fd);
+        Enqueue(&client_queue, fd);
       }
     }
   }

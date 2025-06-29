@@ -2,7 +2,7 @@
 #include <seobeo/helper.h>
 #include <seobeo/os.h>
 
-#define NUM_WORKERS 4
+#define NUM_WORKERS 100
 pthread_t workers[NUM_WORKERS];
 ClientQueue client_queue;
 

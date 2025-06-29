@@ -7,6 +7,10 @@
 #include "build/models.h"
 #include <jansson.h>
 
+#define NUM_WORKERS 4
+pthread_t workers[NUM_WORKERS];
+ClientQueue client_queue;
+
 volatile sig_atomic_t stop_server = 0;
 volatile ConnectionPool *connection_pool;
 HashMap *static_file;

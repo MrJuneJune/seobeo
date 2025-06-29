@@ -104,7 +104,7 @@ typedef struct {
 } StaticFileEntry;
 
 // GPT stuff
-#define QUEUE_CAPACITY 1024
+#define QUEUE_CAPACITY 3000
 
 typedef struct {
     int fds[QUEUE_CAPACITY];

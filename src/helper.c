@@ -9,7 +9,8 @@ void GetTimeStamp(char *time_stamp, size_t size)
 
 int CreateHashPos(const char *key, const size_t size)
 {
-  int hash_val = 5431;
+  // DJD hash number
+  int hash_val = 5381;
   int c;
   while ((c = *key++))
   {

@@ -9,6 +9,7 @@
 
 volatile sig_atomic_t stop_server = 0;
 volatile ConnectionPool *connection_pool;
+HashMap *static_file;
 
 void handle_sigint(int sig)
 {
@@ -411,6 +412,12 @@ char* ReadSQLFile(char* file_name)
 // --- main server loop ---
 int main()
 {
+  // Assign 8mb for caching static files.
+  static_file = CreateHashMap(
+    8388608,
+    FreeStaticFileEntry     
+  );
+
   int server_fd;
   struct sockaddr_in server_addr;
 
@@ -443,4 +450,3 @@ int main()
   close(server_fd);
   return 0;
 }
-

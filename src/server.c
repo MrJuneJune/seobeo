@@ -334,7 +334,6 @@ void ServeStaticFileFallback(int client_fd, HttpRequestType *request)
 {
   char file_path[BUFFER_SIZE] = {0};
 
-  // Determine fallback path
   if (strcmp(request->path, "/") == 0)
   {
     snprintf(file_path, sizeof(file_path), "paths/index.html");
@@ -353,25 +352,7 @@ void ServeStaticFileFallback(int client_fd, HttpRequestType *request)
   }
   else
   {
-    return; // No match, don't serve anything
-  }
-
-  struct stat st;
-  if (stat(file_path, &st) != 0)
-  {
-    WriteToLogs("[Error]⚠️ Could not stat %s\n", file_path);
-    SendHTTPErrorResponse(client_fd, HTTP_NOT_FOUND);
-    return;
-  }
-  size_t file_size = st.st_size;
-
-  // Open file in binary mode
-  FILE *file = fopen(file_path, "rb");
-  if (!file)
-  {
-    WriteToLogs("[Error]⚠️ Could not open %s\n", file_path);
-    SendHTTPErrorResponse(client_fd, HTTP_NOT_FOUND);
-    return;
+    return; 
   }
 
   // Determine content type
@@ -385,43 +366,80 @@ void ServeStaticFileFallback(int client_fd, HttpRequestType *request)
   else if (strstr(file_path, ".svg")) content_type = "image/svg+xml";
   else if (strstr(file_path, ".ico")) content_type = "image/x-icon";
   else if (strstr(file_path, ".json")) content_type = "application/json";
-
-  // Send headers
-  char response_header_buffer[BUFFER_SIZE];
-  GenerateResponseHeader(response_header_buffer, HTTP_OK, content_type, file_size);
+  StaticFileEntry *entry;
   
+  entry = GetHashMapValue(static_file, file_path);
+  if (!entry)
+  {
+    WriteToLogs("Cache miss : %s\n", file_path);
+    entry = LoadStaticFile(file_path, content_type);
+  }
+  else 
+  {
+    WriteToLogs("Cache hit : %s\n", file_path);
+  }
+
+  char response_header_buffer[BUFFER_SIZE];
+  GenerateResponseHeader(response_header_buffer, HTTP_OK, entry->content_type, entry->size);
   if (!SendAll(client_fd, response_header_buffer, strlen(response_header_buffer)))
   {
-    WriteToLogs("[Error]⚠️ Failed to send headers\n");
-    fclose(file);
+    WriteToLogs("[Error]⚠️ Failed to send headers for %s\n", file_path);
     return;
   }
 
-  // Send file content in chunks
-  char response_body_buffer[STATIC_FILE_BUFFER];
-  size_t bytes_read;
-  size_t total_bytes_sent = 0;
-
-  while ((bytes_read = fread(response_body_buffer, 1, STATIC_FILE_BUFFER, file)) > 0)
+  size_t total_sent = 0;
+  while (total_sent < entry->size)
   {
-    if (!SendAll(client_fd, response_body_buffer, bytes_read))
+    size_t chunk = STATIC_FILE_BUFFER;
+    if (entry->size - total_sent < STATIC_FILE_BUFFER)
+      chunk = entry->size - total_sent;
+
+    if (!SendAll(client_fd, entry->data + total_sent, chunk))
     {
-      WriteToLogs("[Error]⚠️ Failed to send file data at byte %zu\n", total_bytes_sent);
-      fclose(file);
+      WriteToLogs("[Error]⚠️ Failed to send data at byte %zu\n", total_sent);
       return;
     }
-    total_bytes_sent += bytes_read;
+    total_sent += chunk;
   }
 
-  // Verify we sent the expected amount
-  if (total_bytes_sent != file_size)
-  {
-    WriteToLogs("[Warning]⚠️ Expected to send %zu bytes, actually sent %zu bytes\n", 
-                file_size, total_bytes_sent);
-  }
+  WriteToLogs("[Info]✅ Served %s from memory (%zu bytes)\n", file_path, entry->size);
+}
 
+StaticFileEntry *LoadStaticFile(const char *file_path, const char *content_type)
+{
+  FILE *file = fopen(file_path, "rb");
+  if (!file) return NULL;
+
+  fseek(file, 0, SEEK_END);
+  size_t size = ftell(file);
+  fseek(file, 0, SEEK_SET);
+
+  char *data = malloc(size);
+  fread(data, 1, size, file);
   fclose(file);
-  WriteToLogs("[Info] Successfully served %s (%zu bytes)\n", file_path, total_bytes_sent);
+
+  StaticFileEntry *entry = malloc(sizeof(StaticFileEntry));
+  entry->data = data;
+  entry->size = size;
+  entry->content_type = content_type;
+
+  InsertHashMap(static_file, file_path, entry);
+
+  return entry;
+}
+
+void FreeStaticFileEntry(void *entry_ptr)
+{
+  StaticFileEntry *entry = (StaticFileEntry *)entry_ptr;
+  if (!entry)
+  {
+    return;
+  }
+  if (entry->data)
+  {
+    free(entry->data);
+  }
+  free(entry);
 }
 
 void HandleRoutes(int client_fd, HttpRequestType *request, Route *routes, size_t route_count)

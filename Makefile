@@ -5,7 +5,7 @@ CFLAGS =  -Iinclude -Lbuild -lseobeo
 BIN_DIR = bin
 SRC_DIR = src
 BUILD_DIR = build
-EXAMPLE_BUILD = example/build
+EXAMPLE_BUILD = example/rest_api/build
 MODEL_SRCS := $(wildcard example/rest_api/build/model_*.c)
 
 # For rest api example, we are using libpq, pog_pool, and jansson
@@ -34,7 +34,7 @@ stand_alone_example:  example/stand_alone/main.c seobeo | $(BIN_DIR)
 	cd example/stand_alone && ../../$(BIN_DIR)/stand_alone_server
 
 # Related to PogPool
-auto_generate: | $(BIN_DIR)
+auto_generate: $(EXAMPLE_BUILD) | $(BIN_DIR)
 	$(CC) example/rest_api/generate_models.c $(REST_API_CFLAGS) -o $(BIN_DIR)/auto_generate && \
 	cd example/rest_api && ../../$(BIN_DIR)/auto_generate
 
@@ -93,16 +93,17 @@ install_third_party_linux: prepare_dirs
 	sudo apt-get install -y libpq-dev libjansson-dev
 	@echo "Cloning and building pog_pool..."
 	git clone https://github.com/MrJuneJune/pog_pool.git
-	cd pog_pool && make install
+	cd pog_pool && make release
 	@echo "Copying pog_pool headers and libs to third_party..."
 	cp -r pog_pool/dist/include/* $(THIRD_PARTY_INCLUDE_DIR)/
-	cp -r pog_pool/dist/libpq.a $(THIRD_PARTY_LIB_DIR)/
+	cp -r pog_pool/dist/libpog_pool.a $(THIRD_PARTY_LIB_DIR)/
+	cp -r pog_pool/include/* $(THIRD_PARTY_INCLUDE_DIR)/
 	@echo "Copying libpq headers and libs to third_party..."
 	cp -r /usr/include/postgresql/* $(THIRD_PARTY_INCLUDE_DIR)/postgresql/
-	cp -r /usr/lib/*libpq.* $(THIRD_PARTY_LIB_DIR)/
+	cp -r /usr/lib/x86_64-linux-gnu/*libpq.* $(THIRD_PARTY_LIB_DIR)/
 	@echo "Copying jansson headers and libs to third_party..."
 	cp -r /usr/include/jansson.h $(THIRD_PARTY_INCLUDE_DIR)/
-	cp -r /usr/lib/*jansson.* $(THIRD_PARTY_LIB_DIR) 
+	cp -r /usr/lib/x86_64-linux-gnu/*jansson.* $(THIRD_PARTY_LIB_DIR) 
 
 prepare_dirs:
 	mkdir -p $(THIRD_PARTY_INCLUDE_DIR)/postgresql
@@ -112,6 +113,7 @@ prepare_dirs:
 # Need to do this due to ownership issues
 delete_third_party:
 	rm -rf $(THIRD_PARTY_PREFIX)
+	rm -rf pog_pool
 
 $(BIN_DIR):
 	mkdir -p $(BIN_DIR)

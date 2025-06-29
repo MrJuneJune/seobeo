@@ -21,7 +21,7 @@ int main()
 
   // Assign 8mb for caching static files.
   static_file = CreateHashMap(
-    8388608, // 8 MB
+    8388608 * 2, // 8 MB
     FreeStaticFileEntry     
   );
 

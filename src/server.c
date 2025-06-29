@@ -38,6 +38,16 @@ void GenerateResponseHeader
     "\r\n", 
     status, status_text, content_type, content_length
   );
+
+  WriteToLogs(
+    "Response:\n"
+    "HTTP/1.1 %d %s\r\n"
+    "Content-Type: %s\r\n"
+    "Content-Length: %d\r\n"
+    "Connection: close\r\n"
+    "\r\n", 
+    status, status_text, content_type, content_length
+  );
 }
 
 void SendHTTPErrorResponse(int client_fd, int status_code)
@@ -297,7 +307,8 @@ int SendAll(int sockfd, const void *buf, size_t len)
   const char *p = buf;
   size_t total_sent = 0;
   int retry_count = 0;
-  const int max_retries = 3;
+  const int max_retries = 100;
+  const int sleep_us = 5000;
 
   while (total_sent < len)
   {
@@ -310,7 +321,7 @@ int SendAll(int sockfd, const void *buf, size_t len)
         // Socket buffer is full, wait a bit and retry
         if (retry_count < max_retries)
         {
-          usleep(1000); // Wait 1ms
+          usleep(sleep_us); 
           retry_count++;
           continue;
         }
@@ -379,6 +390,12 @@ void ServeStaticFileFallback(int client_fd, HttpRequestType *request)
     WriteToLogs("Cache hit : %s\n", file_path);
   }
 
+  if (!entry)
+  {
+    SendHTTPErrorResponse(client_fd, HTTP_NOT_FOUND);
+    return;
+  }
+
   char response_header_buffer[BUFFER_SIZE];
   GenerateResponseHeader(response_header_buffer, HTTP_OK, entry->content_type, entry->size);
   if (!SendAll(client_fd, response_header_buffer, strlen(response_header_buffer)))
@@ -407,6 +424,8 @@ void ServeStaticFileFallback(int client_fd, HttpRequestType *request)
 
 StaticFileEntry *LoadStaticFile(const char *file_path, const char *content_type)
 {
+
+  printf("file open");
   FILE *file = fopen(file_path, "rb");
   if (!file) return NULL;
 

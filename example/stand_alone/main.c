@@ -4,7 +4,7 @@
 
 Route ROUTE[] = {0};
 size_t ROUTE_SIZE = 1;
-
+HashMap *static_file;
 
 volatile sig_atomic_t stop_server = 0;
 
@@ -18,6 +18,12 @@ int main()
 {
   int server_fd;
   struct sockaddr_in server_addr;
+
+  // Assign 8mb for caching static files.
+  static_file = CreateHashMap(
+    8388608, // 8 MB
+    FreeStaticFileEntry     
+  );
 
   // Starting server
   CreateSocket(&server_fd);

@@ -67,6 +67,7 @@
 
 // TODO: Create a global.h file for stuff like this.
 extern volatile sig_atomic_t stop_server;
+extern HashMap *static_file;
 
 typedef struct {
   char key[MAX_KEY_LEN];
@@ -94,6 +95,12 @@ typedef struct {
   RequestHandler *handler;
 } Route;
 
+typedef struct {
+  char *data;
+  size_t size;
+  const char *content_type;
+} StaticFileEntry;
+
 // Create a separate router header and src file to handle these.
 extern Route ROUTE[];
 extern size_t ROUTE_SIZE;
@@ -116,6 +123,8 @@ void HandleRequest(int client_fd);
 void GenerateResponseHeader(char *buffer, int status, const char *content_type, const int content_length);
 void SendHTTPErrorResponse(int client_fd, int status_code);
 void CreateHTTPResponse(int client_fd, char *response, const char *content_type, char *response_header_buffer);
+StaticFileEntry *LoadStaticFile(const char *file_path, const char *content_type);
+void FreeStaticFileEntry(void *entry_ptr);
 
 // Loggers
 void WriteRequestLog(HttpRequestType request);

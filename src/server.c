@@ -103,9 +103,13 @@ void BindToSocket(int *server_fd, struct sockaddr_in *server_addr)
   setsockopt(*server_fd, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
   
   // Set larger socket buffers for better performance
-  int buf_size = 65536;
+  int buf_size = 65536 * 8;
   setsockopt(*server_fd, SOL_SOCKET, SO_RCVBUF, &buf_size, sizeof(buf_size));
   setsockopt(*server_fd, SOL_SOCKET, SO_SNDBUF, &buf_size, sizeof(buf_size));
+
+  #ifdef SO_REUSEPORT
+  setsockopt(*server_fd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
+  #endif
 
   if (bind(*server_fd, (struct sockaddr *)server_addr, sizeof(*server_addr)) < 0)
   {

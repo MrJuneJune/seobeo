@@ -142,54 +142,44 @@ void ListenToSocket(int *server_fd)
   WriteToLogs("🚀 HTTP Server listening on port %d...\n", PORT);
 }
 
-/* server.c / os.c – wherever you previously had ExtractPathFromReferer */
-
-/**
- * Parse “<path>?<query> HTTP/1.1\r\n …” out of the request line.
- * Assumes @src points to the character *after* "GET " / "POST " / …,
- * exactly as ParseHttpRequest() already does.
- *
- * – Copies at most MAX_PATH_LEN-1 bytes into @out_path
- * – Copies at most MAX_QUERY_LEN-1 bytes into @out_query
- * – Both outputs are always NUL-terminated
- */
-void ExtractPathFromReferer(const char *src,
-                            char *out_path,
-                            char *out_query)
+void ExtractPathFromReferer(
+    const char *src,
+    char *out_path,
+    char *out_query
+)
 {
-    const char *p        = src;          /* cursor                             */
-    const char *path_end = NULL;         /* first ' ' or '?'                   */
-    const char *q_start  = NULL;         /* first char after '?' (if present)  */
+    const char *p        = src; 
+    const char *path_end = NULL;
+    const char *q_start  = NULL;
 
-    /* 1. Scan until we hit ‘ ’, ‘?’, or line-end */
     for (; *p && *p != '\r' && *p != '\n'; ++p) {
         if (*p == ' ') {
             if (!path_end) path_end = p;
-            break;                       /* finished: "GET /foo HTTP/…"        */
+            break;
         }
         if (*p == '?' && !q_start) {
-            path_end = p;                /* end of path                        */
-            q_start  = p + 1;            /* start of query string              */
+            path_end = p;
+            q_start  = p + 1;
         }
     }
-    if (!path_end) path_end = p;         /* no space → HTTP line was weird but
-                                            we’ll treat everything as path     */
+    if (!path_end) path_end = p;
 
-    /* 2. Copy the path                                                     */
     size_t path_len = (size_t)(path_end - src);
     if (path_len >= MAX_PATH_LEN) path_len = MAX_PATH_LEN - 1;
     memcpy(out_path, src, path_len);
     out_path[path_len] = '\0';
 
-    /* 3. Copy the query if one exists                                      */
-    if (q_start) {
+    if (q_start)
+    {
         const char *q_end = strchr(q_start, ' ');
         if (!q_end) q_end = q_start + strlen(q_start);
         size_t q_len = (size_t)(q_end - q_start);
         if (q_len >= MAX_QUERY_LEN) q_len = MAX_QUERY_LEN - 1;
         memcpy(out_query, q_start, q_len);
         out_query[q_len] = '\0';
-    } else {
+    }
+    else
+    {
         out_query[0] = '\0';
     }
 }

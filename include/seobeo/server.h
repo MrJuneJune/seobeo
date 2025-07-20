@@ -67,10 +67,6 @@
 #define CONTENT_LENGTH_HEADER "Content-Length: "
 #define CONTENT_TYPE_HEADER "Content-Type: "
 
-// TODO: Create a global.h file for stuff like this.
-extern volatile sig_atomic_t stop_server;
-extern HashMap *static_file;
-
 typedef struct {
   char key[MAX_KEY_LEN];
   char value[MAX_VALUE_LEN];
@@ -113,18 +109,16 @@ typedef struct {
     pthread_cond_t not_empty;
 } ClientQueue;
 
-typedef struct {
-  int client_fd;
-  struct ClientJob *next;
-} ClientJob;
-
+// TODO: Create a global.h file for stuff like this.
+extern volatile sig_atomic_t stop_server;
+extern HashMap *static_file;
+extern FILE  *g_log_file;
 // Create a separate router header and src file to handle these.
 extern Route ROUTE[];
 extern size_t ROUTE_SIZE;
-
-extern ClientJob *current_client_job;
-extern ClientJob *root_client_job;
 extern ClientQueue client_queue;
+
+void InitGlobalVariables();
 
 // Server Related
 int SetNonBlocking(int fd);
@@ -135,7 +129,7 @@ int SendAll(int sockfd, const void *buf, size_t len);
 
 // Request Related
 void ParseHttpRequest(char *buffer, HttpRequestType *request, Arena *request_arena);
-void ExtractPathFromReferer(const char *string_value, char *out_path, char *out_query); 
+void ExtractPathFromReferer(const char *src, char *out_path, char *out_query); 
 int  SanitizePaths(char *path);
 void HandleRoutes(int client_fd, HttpRequestType *request, Route *routes, size_t route_count);
 void HandleRequest(int client_fd);
@@ -149,7 +143,7 @@ void FreeStaticFileEntry(void *entry_ptr);
 
 // Loggers
 void WriteRequestLog(HttpRequestType request);
-void WriteToLogs(const char *restrict format, ...);
+void WriteToLogs(const char *fmt, ...);
 
 int Dequeue(ClientQueue *q);
 void Enqueue(ClientQueue *q, int fd);

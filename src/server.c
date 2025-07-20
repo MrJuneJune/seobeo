@@ -3,6 +3,18 @@
 #include <seobeo/os.h>
 #include <sys/time.h>
 
+FILE  *g_log_file;
+
+void InitGlobalVariables()
+{
+    mkdir("logs", 0755);
+    g_log_file = fopen("logs/loggers.txt", "a");
+    if (!g_log_file) {
+      perror("fopen"); exit(1);
+    }
+    setvbuf(g_log_file, NULL, _IOLBF, 0);
+}
+
 // --- Response -- //
 void GenerateResponseHeader
 (
@@ -130,47 +142,56 @@ void ListenToSocket(int *server_fd)
   WriteToLogs("🚀 HTTP Server listening on port %d...\n", PORT);
 }
 
-void ExtractPathFromReferer(const char *string_value, char *out_path, char *out_query)
+/* server.c / os.c – wherever you previously had ExtractPathFromReferer */
+
+/**
+ * Parse “<path>?<query> HTTP/1.1\r\n …” out of the request line.
+ * Assumes @src points to the character *after* "GET " / "POST " / …,
+ * exactly as ParseHttpRequest() already does.
+ *
+ * – Copies at most MAX_PATH_LEN-1 bytes into @out_path
+ * – Copies at most MAX_QUERY_LEN-1 bytes into @out_query
+ * – Both outputs are always NUL-terminated
+ */
+void ExtractPathFromReferer(const char *src,
+                            char *out_path,
+                            char *out_query)
 {
-  regex_t regex;
-  regmatch_t matches[2];
-  const char *pattern = "(/[^ ?\r\n]*)";
+    const char *p        = src;          /* cursor                             */
+    const char *path_end = NULL;         /* first ' ' or '?'                   */
+    const char *q_start  = NULL;         /* first char after '?' (if present)  */
 
-  if (regcomp(&regex, pattern, REG_EXTENDED) != 0)
-  {
-    fprintf(stderr, "Failed to compile regex\n");
-    return;
-  }
-
-  if (regexec(&regex, string_value, 2, matches, 0) == 0)
-  {
-    int start = matches[1].rm_so;
-    int end = matches[1].rm_eo;
-
-    strncpy(out_path, string_value + start, end - start);
-    out_path[end - start] = '\0';
-
-    const char *query_start = strchr(string_value + end, '?');
-    if (query_start && strlen(query_start + 1) < MAX_QUERY_LEN)
-    {
-      strncpy(out_query, query_start + 1, MAX_QUERY_LEN - 1);
-      out_query[MAX_QUERY_LEN - 1] = '\0';
+    /* 1. Scan until we hit ‘ ’, ‘?’, or line-end */
+    for (; *p && *p != '\r' && *p != '\n'; ++p) {
+        if (*p == ' ') {
+            if (!path_end) path_end = p;
+            break;                       /* finished: "GET /foo HTTP/…"        */
+        }
+        if (*p == '?' && !q_start) {
+            path_end = p;                /* end of path                        */
+            q_start  = p + 1;            /* start of query string              */
+        }
     }
-    else
-    {
-      out_query[0] = '\0'; // No query
+    if (!path_end) path_end = p;         /* no space → HTTP line was weird but
+                                            we’ll treat everything as path     */
+
+    /* 2. Copy the path                                                     */
+    size_t path_len = (size_t)(path_end - src);
+    if (path_len >= MAX_PATH_LEN) path_len = MAX_PATH_LEN - 1;
+    memcpy(out_path, src, path_len);
+    out_path[path_len] = '\0';
+
+    /* 3. Copy the query if one exists                                      */
+    if (q_start) {
+        const char *q_end = strchr(q_start, ' ');
+        if (!q_end) q_end = q_start + strlen(q_start);
+        size_t q_len = (size_t)(q_end - q_start);
+        if (q_len >= MAX_QUERY_LEN) q_len = MAX_QUERY_LEN - 1;
+        memcpy(out_query, q_start, q_len);
+        out_query[q_len] = '\0';
+    } else {
+        out_query[0] = '\0';
     }
-
-    WriteToLogs("[Info] Opened path: %s, query: %s", out_path, out_query);
-  }
-  else
-  {
-    WriteToLogs("[Error] Couldn't Open from: %s", string_value);
-    out_path[0] = '\0';
-    out_query[0] = '\0';
-  }
-
-  regfree(&regex);
 }
 
 void ParseHttpRequest(char *buffer, HttpRequestType *request, Arena *request_arena)
@@ -382,16 +403,24 @@ void ServeStaticFileFallback(int client_fd, HttpRequestType *request)
   else if (strstr(file_path, ".ico")) content_type = "image/x-icon";
   else if (strstr(file_path, ".json")) content_type = "application/json";
   StaticFileEntry *entry;
-  
-  entry = GetHashMapValue(static_file, file_path);
-  if (!entry)
+
+  if (0)
   {
-    WriteToLogs("Cache miss : %s\n", file_path);
-    entry = LoadStaticFile(file_path, content_type);
+    entry = GetHashMapValue(static_file, file_path);
+    if (!entry)
+    {
+      WriteToLogs("Cache miss : %s\n", file_path);
+      entry = LoadStaticFile(file_path, content_type);
+    }
+    else 
+    {
+      WriteToLogs("Cache hit : %s\n", file_path);
+    }
   }
-  else 
+  // Turn off cache
+  else
   {
-    WriteToLogs("Cache hit : %s\n", file_path);
+    entry = LoadStaticFile(file_path, content_type);
   }
 
   if (!entry)
@@ -598,36 +627,24 @@ void WriteRequestLog(HttpRequestType request)
 }
 
 // TODO: Add types
-void WriteToLogs(const char *restrict format, ...)
+void WriteToLogs(const char *fmt, ...)
 {
-  char logger_buffer[LOGGER_BUFFER] = {0};
-  char timestamp[26];
-  va_list args;
+    char buf[LOGGER_BUFFER];
+    char ts[32];
 
-  va_start(args, format);
-  vsnprintf(logger_buffer, LOGGER_BUFFER, format, args);
-  va_end(args);
+    va_list ap; va_start(ap, fmt);
+    vsnprintf(buf, sizeof buf, fmt, ap);
+    va_end(ap);
 
-  struct stat file_stat = {0};
-  if (stat("logs", &file_stat) == -1)
-  {
-    printf("logs folder do not exists");
-    if (mkdir("logs", 0755) != 0)
-    {
-      printf("Cannot create log directory");
-    }
-  }
+    struct timespec tv; clock_gettime(CLOCK_REALTIME, &tv);
+    struct tm tm; gmtime_r(&tv.tv_sec, &tm);         /* lock-free variant */
+    strftime(ts, sizeof ts, "%Y-%m-%d %H:%M:%S", &tm);
 
-  FILE *file = fopen("logs/logers.txt", "a");
-  if (file)
-  {
-    GetTimeStamp(timestamp, sizeof(timestamp));
-    printf("[%s] %s \n", timestamp, logger_buffer);
-    fprintf(file, "[%s] %s \n", timestamp, logger_buffer);
-    fclose(file);
-  }
+    fprintf(g_log_file, "[%s.%03ld] %s\n",
+            ts, tv.tv_nsec / 1000000, buf);
+    printf( "[%s.%03ld] %s\n",
+            ts, tv.tv_nsec / 1000000, buf);
 }
-
 
 void CreateHTTPResponse(int client_fd, char *response, const char *content_type, char *response_header_buffer)
 {
@@ -694,7 +711,6 @@ void* WorkerThread(void* arg) {
     while (1) {
         int fd = Dequeue(queue);
         HandleRequest(fd);
-        close(fd);
     }
 
     return NULL;

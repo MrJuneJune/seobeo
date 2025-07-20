@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Seobeo - Lightweight C Server</title>
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.6/dist/htmx.min.js"></script>
   <!-- Preload stuff -->
   <link rel="preload" as="image" href="/seobeo.png">
   <link rel="preload" as="image" href="/shiba_open.png">
@@ -241,6 +242,10 @@
           <p class="subtitle">For Simple mind minions</p>
           <p>Seobeo is a minimal footprint C server built for simplicity.</p>
           <p>Here is a dumb game that AI made and I had to fix some bugs on it. I don't know what else to add for now.</p>
+          <!-- have a button POST a click via AJAX -->
+          <button hx-post="/clicked" hx-swap="outerHTML">
+            Click Me
+          </button>
         </div>
         <div class="game-container">
           <canvas id="gameCanvas" width="800" height="300"></canvas>

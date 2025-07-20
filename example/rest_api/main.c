@@ -10,7 +10,6 @@
 #define NUM_WORKERS 4
 pthread_t workers[NUM_WORKERS];
 ClientQueue client_queue;
-
 volatile sig_atomic_t stop_server = 0;
 volatile ConnectionPool *connection_pool;
 HashMap *static_file;
@@ -416,17 +415,21 @@ char* ReadSQLFile(char* file_name)
 // --- main server loop ---
 int main()
 {
+  InitGlobalVariables();
+
   int server_fd;
   struct sockaddr_in server_addr;
 
-  // Assign 8mb for caching static files.
   static_file = CreateHashMap(
-    8388608,
+    1000,
     FreeStaticFileEntry     
   );
 
-  current_client_job = malloc(sizeof(ClientJob));
-  root_client_job = current_client_job;
+  InitQueue(&client_queue);
+  for (int i = 0; i < NUM_WORKERS; ++i)
+  {
+    pthread_create(&workers[i], NULL, WorkerThread, &client_queue);
+  }
 
   // DB manager
   ConnectionPool connection_pool_real={0};
@@ -455,5 +458,6 @@ int main()
   // TODO: Maybe assign fd into arena and clean up at the end easily.
   printf("Shutting down server...\n");
   close(server_fd);
+  fclose(g_log_file);
   return 0;
 }
